@@ -21,5 +21,12 @@ public class ChamadoService {
     public List<Chamado> listarTodos() {
         return repository.findAll();
     }
+    public Chamado atualizarChamado(Long id, Chamado chamadoAtualizado) {
+        return repository.findById(id).map(chamado -> {
+            chamado.setTitulo(chamadoAtualizado.getTitulo());
+            chamado.setDescricao(chamadoAtualizado.getDescricao());
+            return repository.save(chamado);
+        }).orElseThrow(() -> new RuntimeException("Chamado não encontrado"));
+    }
 
 }
