@@ -1,6 +1,6 @@
 package br.edu.nassau.asordens.service;
 
-import br.edu.nassau.asordens.model.Model;
+import br.edu.nassau.asordens.chamado.Chamado;
 import br.edu.nassau.asordens.repository.ChamadoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -13,12 +13,12 @@ public class ChamadoService {
     @Autowired
     private ChamadoRepository repository;
 
-    public Model criarChamado(Model model) {
-        model.setStatus("ABERTO");
-        model.setDataAbertura(LocalDateTime.now());
-        return repository.save(model);
+    public Chamado criarChamado(Chamado chamado) {
+        chamado.setStatus("ABERTO");
+        chamado.setDataAbertura(LocalDateTime.now());
+        return repository.save(chamado);
     }
-    public List<Model> listarTodos() {
+    public List<Chamado> listarTodos() {
         return repository.findAll();
     }
 

@@ -1,4 +1,4 @@
-package br.edu.nassau.asordens.model;
+package br.edu.nassau.asordens.chamado;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 @Data
 @Entity
 @Table(name = "tb_chamados")
-public class Model {
+public class Chamado {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
