@@ -28,5 +28,17 @@ public class ChamadoService {
             return repository.save(chamado);
         }).orElseThrow(() -> new RuntimeException("Chamado não encontrado"));
     }
+    public Chamado atualizarStatus(Long id, String novoStatus) {
+        return repository.findById(id).map(chamado -> {
+            chamado.setStatus(novoStatus);
+            return repository.save(chamado);
+        }).orElseThrow(() -> new RuntimeException("Chamado não encontrado"));
+    }
+    public void deletarChamado(Long id) {
+        if (repository.existsById(id)) {
+            throw new RuntimeException("Chamado não encontrado");
+        }
+        repository.deleteById(id);
+    }
 
 }
