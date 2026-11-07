@@ -35,7 +35,7 @@ public class ChamadoService {
         }).orElseThrow(() -> new RuntimeException("Chamado não encontrado"));
     }
     public void deletarChamado(Long id) {
-        if (repository.existsById(id)) {
+        if (!repository.existsById(id)) {
             throw new RuntimeException("Chamado não encontrado");
         }
         repository.deleteById(id);
