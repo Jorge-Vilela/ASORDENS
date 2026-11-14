@@ -10,4 +10,9 @@ import java.util.List;
 public interface ChamadoRepository extends JpaRepository<Chamado, Long> {
 
     List<Chamado> findByStatus(String status);
+    boolean existsByCategoria(String categoria);
+
+    @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @org.springframework.data.jpa.repository.Query("select c from Chamado c where c.id = :id")
+    java.util.Optional<Chamado> buscarParaAtualizar(@org.springframework.data.repository.query.Param("id") Long id);
 }
