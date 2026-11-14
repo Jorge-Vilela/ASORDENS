@@ -4,6 +4,7 @@ import BaseModal from './BaseModal.vue'
 import AnexosInput from './AnexosInput.vue'
 import { useChamados } from '../composables/useChamados'
 import { chamadosService } from '../services/chamadosService'
+import { erroApi } from '../services/api'
 import { categorias } from '../utils/chamados'
 
 const { chamadoEmEdicao, fecharForm, atualizarListas, abrirDetalhe } = useChamados()
@@ -32,6 +33,7 @@ async function salvar() {
     solicitante: form.value.solicitante.trim(),
   }
 
+  try {
   if (edicao) {
     await chamadosService.atualizar(edicao.id, dados)
     atualizarListas()
@@ -42,6 +44,8 @@ async function salvar() {
     atualizarListas()
     fecharForm()
   }
+  } catch (error) { erroApi.value = error.message }
+  finally { salvando.value = false }
 }
 </script>
 

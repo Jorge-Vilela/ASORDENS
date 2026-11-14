@@ -6,6 +6,7 @@ import StatusBadge from '../components/StatusBadge.vue'
 import AnexosInput from '../components/AnexosInput.vue'
 import { useChamados } from '../composables/useChamados'
 import { chamadosService } from '../services/chamadosService'
+import { erroApi } from '../services/api'
 import { statusLabel, prioridadeLabel, formatarData, formatarTamanho } from '../utils/chamados'
 
 const route = useRoute()
@@ -33,20 +34,24 @@ function rolarParaFim() {
 async function enviar() {
   if (enviando.value || (!texto.value.trim() && !anexos.value.length)) return
   enviando.value = true
+  try {
   await chamadosService.enviarMensagem(chamado.value.id, {
     texto: texto.value.trim(),
     anexos: anexos.value,
   })
   texto.value = ''
   anexos.value = []
-  enviando.value = false
   atualizarListas()
   rolarParaFim()
+  } catch (error) { erroApi.value = error.message }
+  finally { enviando.value = false }
 }
 
 async function mudarStatus(evento) {
+  try {
   await chamadosService.alterarStatus(chamado.value.id, evento.target.value)
   atualizarListas()
+  } catch { evento.target.value = chamado.value.status }
 }
 
 const ehImagem = (a) => a.tipo.startsWith('image/')

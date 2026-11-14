@@ -11,7 +11,8 @@ const chamados = ref([])
 const carregando = ref(true)
 
 async function carregar() {
-  chamados.value = await chamadosService.listar(route.meta.filtro)
+  const filtro = typeof route.meta.filtro === 'function' ? route.meta.filtro() : route.meta.filtro
+  chamados.value = await chamadosService.listar(filtro)
   carregando.value = false
 }
 

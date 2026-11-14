@@ -4,8 +4,8 @@ import {
   Compass, Plus, ChartColumn, Inbox, CircleAlert, Clock,
   CircleCheck, ClipboardList, Users, Settings, ChevronDown,
 } from 'lucide-vue-next'
-import { chamados } from '../mocks/chamados'
-import { usuarioAtual } from '../mocks/usuario'
+import { chamados } from '../stores/dados'
+import { usuarioAtual } from '../stores/dados'
 
 defineEmits(['novo-chamado'])
 

@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { Users, UserCheck, Inbox, Mail } from 'lucide-vue-next'
 import KpiCard from '../components/KpiCard.vue'
 import { equipesService } from '../services/equipesService'
-import { chamados } from '../mocks/chamados'
+import { chamados } from '../stores/dados'
 import { useChamados } from '../composables/useChamados'
 
 const { versao } = useChamados()

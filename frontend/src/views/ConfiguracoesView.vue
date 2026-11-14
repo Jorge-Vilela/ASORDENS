@@ -1,9 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { Trash2, Plus } from 'lucide-vue-next'
-import { usuarioAtual } from '../mocks/usuario'
-import { preferencias } from '../mocks/configuracoes'
-import { chamados } from '../mocks/chamados'
+import { usuarioAtual } from '../stores/dados'
+import { preferencias } from '../stores/dados'
+import { chamados } from '../stores/dados'
 import { categorias } from '../utils/chamados'
 import { configuracoesService } from '../services/configuracoesService'
 

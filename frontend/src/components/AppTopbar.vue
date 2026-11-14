@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Bell, Inbox } from 'lucide-vue-next'
-import { chamados } from '../mocks/chamados'
-import { usuarioAtual } from '../mocks/usuario'
+import { chamados } from '../stores/dados'
+import { usuarioAtual } from '../stores/dados'
 
 const route = useRoute()
 
