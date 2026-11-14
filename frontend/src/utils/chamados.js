@@ -20,7 +20,7 @@ export function formatarData(iso) {
   return `${data} ${hora}`
 }
 
-export const categorias = reactive(['Sistemas', 'Hardware', 'Acessos', 'Rede', 'E-mail', 'SO'])
+export const categorias = reactive([])
 
 export function formatarTamanho(bytes) {
   if (bytes < 1024) return `${bytes} B`
