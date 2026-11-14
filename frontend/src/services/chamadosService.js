@@ -1,14 +1,45 @@
-import { chamados } from '../mocks/chamados'
-import { usuarioAtual } from '../mocks/usuario'
+﻿import { api } from './api'
+import { chamados } from '../stores/dados'
 
+const normalizar = (c) => ({
+  ...c,
+  id: `CHM-${c.id}`,
+  status: (c.status || 'aberto').toLowerCase(),
+  solicitante: c.solicitante || '',
+  categoria: c.categoria || '',
+  prioridade: c.prioridade || 'baixa',
+  atualizadoEm: c.atualizadoEm || c.dataAbertura,
+  anexos: c.anexos || [],
+  mensagens: c.mensagens || [],
+})
+const idApi = (id) => encodeURIComponent(String(id).replace(/^CHM-/, ''))
 
-const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+async function anexosParaApi(anexos = []) {
+  return Promise.all(anexos.map(async ({ arquivo, id, nome, tipo, tamanho, url }) => {
+    if (arquivo) {
+      url = await new Promise((resolve, reject) => {
+        const leitor = new FileReader()
+        leitor.onload = () => resolve(leitor.result)
+        leitor.onerror = () => reject(new Error(`Não foi possível ler ${nome}.`))
+        leitor.readAsDataURL(arquivo)
+      })
+    }
+    return { id, nome, tipo: tipo || 'application/octet-stream', tamanho, url }
+  }))
+}
+
+function guardar(dados) {
+  const chamado = normalizar(dados)
+  const indice = chamados.findIndex((c) => c.id === chamado.id)
+  if (indice < 0) chamados.unshift(chamado)
+  else chamados.splice(indice, 1, chamado)
+  return chamado
+}
 
 export const chamadosService = {
-  // filtro: { status: ['aberto'], semAgente: true }
   async listar(filtro = {}) {
-    await esperar(150)
-
+    const { data } = await api.get('/chamados')
+    chamados.splice(0, chamados.length, ...data.map(normalizar))
     return chamados.filter((c) => {
       if (filtro.status && !filtro.status.includes(c.status)) return false
       if (filtro.semAgente && c.agente) return false
@@ -16,71 +47,28 @@ export const chamadosService = {
       return true
     })
   },
-
-    async buscar(id) {
-    await esperar(100)
-    // API real: const { data } = await api.get(`/chamados/${id}`)
-    return chamados.find((c) => c.id === id) ?? null
+  async buscar(id) {
+    const { data } = await api.get(`/chamados/${idApi(id)}`)
+    return guardar(data)
   },
-
   async criar(dados) {
-    await esperar(200)
-
-
-    const ultimo = Math.max(...chamados.map((c) => Number(c.id.split('-')[1])))
-    const novo = {
-      ...dados,
-      id: `CHM-${ultimo + 1}`,
-      status: 'aberto',
-      agente: null,
-      atualizadoEm: new Date().toISOString(),
-    }
-    chamados.unshift(novo)
-    return novo
+    const { data } = await api.post('/chamados', { ...dados, anexos: await anexosParaApi(dados.anexos) })
+    return guardar(data)
   },
-
   async atualizar(id, dados) {
-    await esperar(200)
-    
-    const chamado = chamados.find((c) => c.id === id)
-    Object.assign(chamado, dados, { atualizadoEm: new Date().toISOString() })
-    return chamado
+    const { data } = await api.put(`/chamados/${idApi(id)}`, { ...dados, anexos: await anexosParaApi(dados.anexos) })
+    return guardar(data)
   },
-
-    async puxar(id) {
-    await esperar(150)
-    // API real: await api.post(`/chamados/${id}/puxar`)
-    const chamado = chamados.find((c) => c.id === id)
-    if (chamado.agente) throw new Error('Este chamado já foi atribuído a outro agente.')
-    chamado.agente = usuarioAtual.nome
-    chamado.status = 'em_andamento'
-    chamado.atualizadoEm = new Date().toISOString()
-    return chamado
+  async puxar(id) {
+    const { data } = await api.post(`/chamados/${idApi(id)}/puxar`)
+    return guardar(data)
   },
-
   async alterarStatus(id, status) {
-    await esperar(100)
-    // API real: await api.patch(`/chamados/${id}`, { status })
-    const chamado = chamados.find((c) => c.id === id)
-    chamado.status = status
-    chamado.atualizadoEm = new Date().toISOString()
-    return chamado
+    const { data } = await api.patch(`/chamados/${idApi(id)}/status`, { status })
+    return guardar(data)
   },
-
   async enviarMensagem(id, { texto, anexos }) {
-    await esperar(150)
-    // API real: POST /chamados/:id/mensagens (multipart, por causa dos anexos)
-    const chamado = chamados.find((c) => c.id === id)
-    chamado.mensagens ??= []
-    chamado.mensagens.push({
-      id: crypto.randomUUID(),
-      autor: 'agente',
-      nome: usuarioAtual.nome,
-      texto,
-      anexos,
-      enviadoEm: new Date().toISOString(),
-    })
-    chamado.atualizadoEm = new Date().toISOString()
-    return chamado
+    const { data } = await api.post(`/chamados/${idApi(id)}/mensagens`, { texto, anexos: await anexosParaApi(anexos) })
+    return guardar(data)
   },
 }

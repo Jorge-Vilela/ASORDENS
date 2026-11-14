@@ -1,18 +1,10 @@
-import { chamados } from '../mocks/chamados'
-import { dashboard } from '../mocks/dashboard'
-
-const esperar = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+﻿import { chamadosService } from './chamadosService'
+import { porCategoria, seriePorPeriodo } from './indicadores'
 
 export const dashboardService = {
   async resumo() {
-    await esperar(150)
-
-    // Quando o back existir, troca tudo por:
-    // const { data } = await api.get('/dashboard')
-    // return data
-
+    const chamados = await chamadosService.listar()
     const contar = (fn) => chamados.filter(fn).length
-
     return {
       kpis: {
         abertos: contar((c) => c.status === 'aberto'),
@@ -20,11 +12,9 @@ export const dashboardService = {
         resolvidos: contar((c) => c.status === 'resolvido'),
         altaPrioridade: contar((c) => c.prioridade === 'alta'),
       },
-      porDia: dashboard.porDia,
-      porCategoria: dashboard.porCategoria,
-      recentes: [...chamados]
-        .sort((a, b) => b.atualizadoEm.localeCompare(a.atualizadoEm))
-        .slice(0, 6),
+      porDia: seriePorPeriodo(chamados, 7),
+      porCategoria: porCategoria(chamados),
+      recentes: [...chamados].sort((a, b) => b.atualizadoEm.localeCompare(a.atualizadoEm)).slice(0, 6),
     }
   },
 }
