@@ -1,16 +1,22 @@
 package br.edu.nassau.asordens.chamado;
 
+import br.edu.nassau.asordens.categoria.Categoria;
+import br.edu.nassau.asordens.equipe.Equipe;
+import br.edu.nassau.asordens.usuario.Usuario;
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.*;
+
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
+
 
 @Data
 @Entity
 @Table(name = "tb_chamados")
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
+@Builder
 public class Chamado {
 
     @Id
@@ -23,38 +29,44 @@ public class Chamado {
     @Column(columnDefinition = "TEXT")
     private String descricao;
 
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private StatusChamado status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private PrioridadeChamado prioridade;
 
     private OffsetDateTime dataAbertura;
-    private String solicitante;
-    private String categoria;
-    private String prioridade;
-    private String agente;
     private OffsetDateTime atualizadoEm;
     private OffsetDateTime resolvidoEm;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<Anexo> anexos = new ArrayList<>();
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "solicitante_id", nullable = false)
+    private Usuario solicitante;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    private List<Mensagem> mensagens = new ArrayList<>();
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "agente_id")
+    private Usuario agente;
 
-    @Data
-    public static class Anexo {
-        private String id;
-        private String nome;
-        private String tipo;
-        private long tamanho;
-        private String url;
-    }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "equipe_id")
+    private Equipe equipe;
 
-    @Data
-    public static class Mensagem {
-        private String id;
-        private String autor;
-        private String nome;
-        private String texto;
-        private List<Anexo> anexos = new ArrayList<>();
-        private OffsetDateTime enviadoEm;
-    }
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "categoria_id", nullable = false)
+    private Categoria categoria;
+
+
+    @OneToMany(mappedBy = "chamado", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<InteracaoChamado> interacoes = new ArrayList<>();
+
+    @OneToMany(mappedBy = "chamado", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<AnexoChamado> anexos = new ArrayList<>();
+
+    @OneToOne(mappedBy = "chamado", cascade = CascadeType.ALL, orphanRemoval = true)
+    private AvaliacaoChamado avaliacao;
+
 }

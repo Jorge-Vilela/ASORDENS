@@ -1,42 +1,80 @@
 package br.edu.nassau.asordens.controller;
 
-import br.edu.nassau.asordens.chamado.Chamado;
+import br.edu.nassau.asordens.chamado.PrioridadeChamado;
+import br.edu.nassau.asordens.chamado.StatusChamado;
+import br.edu.nassau.asordens.chamado.dto.*;
 import br.edu.nassau.asordens.service.ChamadoService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
+
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chamados")
 @RequiredArgsConstructor
 public class ChamadoController {
+
     private final ChamadoService service;
 
     @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    public Chamado criar(@RequestBody Chamado chamado) { return service.criarChamado(chamado); }
+    public ResponseEntity<ChamadoResponseDTO> criar(@Valid @RequestBody ChamadoRequestDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(service.criarChamado(dto));
+    }
 
     @GetMapping
-    public List<Chamado> listar() { return service.listarTodos(); }
+    public ResponseEntity<Page<ChamadoResponseDTO>> listar(
+            @RequestParam(required = false) StatusChamado status,
+            @RequestParam(required = false) PrioridadeChamado prioridade,
+            @RequestParam(required = false) Long equipeId,
+            @RequestParam(required = false) String titulo,
+            @PageableDefault(size = 10, sort = "dataAbertura", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(service.listarPaginado(status, prioridade, equipeId, titulo, pageable));
+    }
 
     @GetMapping("/{id}")
-    public Chamado buscar(@PathVariable Long id) { return service.buscar(id); }
+    public ResponseEntity<ChamadoResponseDTO> buscar(@PathVariable Long id) {
+        return ResponseEntity.ok(service.buscar(id));
+    }
 
     @PutMapping("/{id}")
-    public Chamado atualizar(@PathVariable Long id, @RequestBody Chamado chamado) { return service.atualizarChamado(id, chamado); }
+    public ResponseEntity<ChamadoResponseDTO> atualizar(
+            @PathVariable Long id, @Valid @RequestBody ChamadoRequestDTO dto) {
+        return ResponseEntity.ok(service.atualizarChamado(id, dto));
+    }
 
     @PatchMapping("/{id}/status")
-    public Chamado status(@PathVariable Long id, @RequestBody Map<String, String> dados) { return service.atualizarStatus(id, dados.get("status")); }
+    public ResponseEntity<ChamadoResponseDTO> status(
+            @PathVariable Long id, @RequestBody Map<String, String> dados) {
+        return ResponseEntity.ok(service.atualizarStatus(id, StatusChamado.fromString(dados.get("status"))));
+    }
 
     @PostMapping("/{id}/puxar")
-    public Chamado puxar(@PathVariable Long id) { return service.puxar(id); }
+    public ResponseEntity<ChamadoResponseDTO> puxar(@PathVariable Long id) {
+        return ResponseEntity.ok(service.puxar(id));
+    }
 
     @PostMapping("/{id}/mensagens")
-    public Chamado mensagem(@PathVariable Long id, @RequestBody Chamado.Mensagem dados) { return service.enviarMensagem(id, dados); }
+    public ResponseEntity<ChamadoResponseDTO> mensagem(
+            @PathVariable Long id, @Valid @RequestBody InteracoesRequestDTO dto) {
+        return ResponseEntity.ok(service.enviarMensagem(id, dto));
+    }
+
+    @PostMapping("/{id}/avaliacao")
+    public ResponseEntity<ChamadoResponseDTO> avaliar(
+            @PathVariable Long id, @Valid @RequestBody AvaliacaoRequestDTO dto) {
+        return ResponseEntity.ok(service.avaliarChamado(id, dto));
+    }
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deletar(@PathVariable Long id) { service.deletarChamado(id); }
+    public void deletar(@PathVariable Long id) {
+        service.deletarChamado(id);
+    }
 }

@@ -1,15 +1,23 @@
 package br.edu.nassau.asordens.service;
 
-import br.edu.nassau.asordens.chamado.Chamado;
-import br.edu.nassau.asordens.chamado.Chamado.Anexo;
-import br.edu.nassau.asordens.chamado.Chamado.Mensagem;
-import br.edu.nassau.asordens.configuracao.ConfiguracaoService;
+import br.edu.nassau.asordens.categoria.CategoriaService;
+import br.edu.nassau.asordens.chamado.*;
+import br.edu.nassau.asordens.chamado.dto.*;
+import br.edu.nassau.asordens.equipe.EquipeService;
 import br.edu.nassau.asordens.repository.ChamadoRepository;
+import br.edu.nassau.asordens.usuario.Usuario;
+import br.edu.nassau.asordens.usuario.UsuarioRepository;
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
+
 import java.time.OffsetDateTime;
 import java.util.*;
 
@@ -17,110 +25,173 @@ import java.util.*;
 @RequiredArgsConstructor
 @Transactional
 public class ChamadoService {
-    private final ChamadoRepository repository;
-    private final ConfiguracaoService configuracao;
-    private static final Set<String> STATUS = Set.of("aberto", "em_andamento", "resolvido", "fechado");
 
-    public Chamado criarChamado(Chamado dados) {
+    private final ChamadoRepository repository;
+    private final CategoriaService categoriaService;
+    private final EquipeService equipeService;
+    private final UsuarioRepository usuarioRepository;
+
+    private Usuario getUsuarioLogado() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new EntityNotFoundException("Usuário autenticado não encontrado."));
+    }
+
+    public ChamadoResponseDTO criarChamado(ChamadoRequestDTO dto) {
         var chamado = new Chamado();
-        copiarDados(chamado, dados);
-        chamado.setStatus("aberto");
+        chamado.setSolicitante(getUsuarioLogado());
+        copiarDados(chamado, dto);
+        chamado.setStatus(StatusChamado.ABERTO);
         chamado.setDataAbertura(OffsetDateTime.now());
-        return salvar(chamado);
+        return ChamadoResponseDTO.fromEntity(salvar(chamado));
     }
 
     @Transactional(readOnly = true)
-    public List<Chamado> listarTodos() { return repository.findAll(); }
+    public Page<ChamadoResponseDTO> listarPaginado(
+            StatusChamado status, PrioridadeChamado prioridade, Long equipeId, String titulo, Pageable pageable) {
+        return repository.buscarComFiltros(status, prioridade, equipeId, titulo, pageable)
+                .map(ChamadoResponseDTO::fromEntity);
+    }
 
     @Transactional(readOnly = true)
-    public Chamado buscar(Long id) {
-        return repository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chamado não encontrado."));
+    public Page<ChamadoResponseDTO> listarPorEquipe(Long equipeId, Pageable pageable) {
+        return repository.findByEquipeId(equipeId, pageable).map(ChamadoResponseDTO::fromEntity);
+    }
+
+    @Transactional(readOnly = true)
+    public ChamadoResponseDTO buscar(Long id) {
+        Chamado chamado = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Chamado não encontrado."));
+        return ChamadoResponseDTO.fromEntity(chamado);
     }
 
     private Chamado bloquear(Long id) {
-        return repository.buscarParaAtualizar(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Chamado não encontrado."));
+        return repository.buscarParaAtualizar(id)
+                .orElseThrow(() -> new EntityNotFoundException("Chamado não encontrado."));
     }
 
-    public Chamado atualizarChamado(Long id, Chamado dados) {
+    public ChamadoResponseDTO atualizarChamado(Long id, ChamadoRequestDTO dto) {
         var chamado = bloquear(id);
-        copiarDados(chamado, dados);
-        return salvar(chamado);
+        copiarDados(chamado, dto);
+        return ChamadoResponseDTO.fromEntity(salvar(chamado));
     }
 
-    private void copiarDados(Chamado chamado, Chamado dados) {
-        if (dados.getTitulo() == null || dados.getTitulo().isBlank() || dados.getTitulo().length() > 255
-            || dados.getSolicitante() == null || dados.getSolicitante().isBlank() || dados.getSolicitante().length() > 255)
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe título e solicitante (até 255 caracteres).");
-        if (dados.getCategoria() == null || !configuracao.atual().getCategorias().contains(dados.getCategoria()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Categoria inválida.");
-        if (dados.getPrioridade() == null || !Set.of("alta", "media", "baixa").contains(dados.getPrioridade()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Prioridade inválida.");
-        validarAnexos(dados.getAnexos());
-        chamado.setTitulo(dados.getTitulo().trim());
-        chamado.setSolicitante(dados.getSolicitante().trim());
-        chamado.setDescricao(dados.getDescricao());
-        chamado.setCategoria(dados.getCategoria());
-        chamado.setPrioridade(dados.getPrioridade());
-        chamado.setAnexos(dados.getAnexos() == null ? new ArrayList<>() : new ArrayList<>(dados.getAnexos()));
+    private void copiarDados(Chamado chamado, ChamadoRequestDTO dto) {
+        chamado.setTitulo(dto.titulo().trim());
+        chamado.setDescricao(dto.descricao());
+        chamado.setPrioridade(dto.prioridade());
+        chamado.setCategoria(categoriaService.buscarEntidade(dto.categoriaId()));
+        chamado.setEquipe(dto.equipeId() != null ? equipeService.buscarEntidade(dto.equipeId()) : null);
+
+        if (dto.anexos() != null) {
+            List<AnexoChamado> novosAnexos = validarEConverterAnexos(dto.anexos(), chamado);
+            chamado.getAnexos().clear();
+            chamado.getAnexos().addAll(novosAnexos);
+        }
     }
 
-    public Chamado atualizarStatus(Long id, String status) {
-        if (status == null || !STATUS.contains(status))
+    public ChamadoResponseDTO atualizarStatus(Long id, StatusChamado novoStatus) {
+        if (novoStatus == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Status inválido.");
+        }
         var chamado = bloquear(id);
-        if (Set.of("resolvido", "fechado").contains(status)) {
+        if (novoStatus == StatusChamado.RESOLVIDO || novoStatus == StatusChamado.FECHADO) {
             if (chamado.getResolvidoEm() == null) chamado.setResolvidoEm(OffsetDateTime.now());
-        } else chamado.setResolvidoEm(null);
-        chamado.setStatus(status);
-        return salvar(chamado);
+        } else {
+            chamado.setResolvidoEm(null);
+        }
+        chamado.setStatus(novoStatus);
+        return ChamadoResponseDTO.fromEntity(salvar(chamado));
     }
 
-    public Chamado puxar(Long id) {
+    public ChamadoResponseDTO puxar(Long id) {
         var chamado = bloquear(id);
-        if (chamado.getAgente() != null && !chamado.getAgente().isBlank())
+        var agenteLogado = getUsuarioLogado();
+
+        if (chamado.getAgente() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Este chamado já foi atribuído a um agente.");
-        if (!"aberto".equals(chamado.getStatus()))
+        }
+        if (chamado.getStatus() != StatusChamado.ABERTO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Somente chamados abertos podem ser puxados.");
-        chamado.setAgente(configuracao.atual().getNome());
-        chamado.setStatus("em_andamento");
-        return salvar(chamado);
+        }
+
+        chamado.setAgente(agenteLogado);
+        chamado.setStatus(StatusChamado.EM_ANDAMENTO);
+        if (chamado.getEquipe() == null && agenteLogado.getEquipe() != null) {
+            chamado.setEquipe(agenteLogado.getEquipe());
+        }
+
+        var interacao = InteracaoChamado.builder()
+                .chamado(chamado)
+                .autor(agenteLogado)
+                .texto("Chamado assumido por " + agenteLogado.getNome())
+                .enviadoEm(OffsetDateTime.now())
+                .build();
+        chamado.getInteracoes().add(interacao);
+
+        return ChamadoResponseDTO.fromEntity(salvar(chamado));
     }
 
-    public Chamado enviarMensagem(Long id, Mensagem dados) {
+    public ChamadoResponseDTO enviarMensagem(Long id, @Valid InteracoesRequestDTO dto) {
         var chamado = bloquear(id);
-        validarAnexos(dados.getAnexos());
-        if ((dados.getTexto() == null || dados.getTexto().isBlank()) && (dados.getAnexos() == null || dados.getAnexos().isEmpty()))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe uma mensagem ou um anexo.");
-        var mensagem = new Mensagem();
-        mensagem.setId(UUID.randomUUID().toString());
-        mensagem.setAutor("agente");
-        mensagem.setNome(configuracao.atual().getNome());
-        mensagem.setTexto(dados.getTexto() == null ? "" : dados.getTexto().trim());
-        mensagem.setAnexos(dados.getAnexos() == null ? new ArrayList<>() : dados.getAnexos());
-        mensagem.setEnviadoEm(OffsetDateTime.now());
-        var mensagens = chamado.getMensagens() == null ? new ArrayList<Mensagem>() : new ArrayList<>(chamado.getMensagens());
-        mensagens.add(mensagem);
-        chamado.setMensagens(mensagens);
-        return salvar(chamado);
+        var autor = getUsuarioLogado();
+
+        var interacao = InteracaoChamado.builder()
+                .chamado(chamado)
+                .autor(autor)
+                .texto(dto.texto().trim())
+                .enviadoEm(OffsetDateTime.now())
+                .build();
+
+        chamado.getInteracoes().add(interacao);
+        return ChamadoResponseDTO.fromEntity(salvar(chamado));
     }
 
-    private void validarAnexos(List<Anexo> anexos) {
-        if (anexos == null) return;
-        if (anexos.size() > 10) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Máximo de 10 anexos por envio.");
+    public ChamadoResponseDTO avaliarChamado(Long id, AvaliacaoRequestDTO dto) {
+        var chamado = bloquear(id);
+        if (chamado.getStatus() != StatusChamado.RESOLVIDO && chamado.getStatus() != StatusChamado.FECHADO) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Apenas chamados resolvidos ou fechados podem ser avaliados.");
+        }
+        if (chamado.getAvaliacao() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este chamado já foi avaliado.");
+        }
+
+        var avaliacao = AvaliacaoChamado.builder()
+                .chamado(chamado)
+                .nota(dto.nota())
+                .comentario(dto.comentario())
+                .dataAvaliacao(OffsetDateTime.now())
+                .build();
+
+        chamado.setAvaliacao(avaliacao);
+        return ChamadoResponseDTO.fromEntity(salvar(chamado));
+    }
+
+    private List<AnexoChamado> validarEConverterAnexos(List<AnexoDTO> anexos, Chamado chamado) {
+        if (anexos.size() > 10) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Máximo de 10 anexos por envio.");
+        }
+        List<AnexoChamado> lista = new ArrayList<>();
         for (var anexo : anexos) {
-            if (anexo == null || anexo.getNome() == null || anexo.getNome().isBlank() || anexo.getUrl() == null
-                || !anexo.getUrl().startsWith("data:") || !anexo.getUrl().contains(";base64,"))
+            if (anexo == null || anexo.url() == null || !anexo.url().startsWith("data:") || !anexo.url().contains(";base64,")) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Anexo inválido.");
+            }
             try {
-                var bytes = Base64.getDecoder().decode(anexo.getUrl().substring(anexo.getUrl().indexOf(";base64,") + 8));
+                var bytes = Base64.getDecoder().decode(anexo.url().substring(anexo.url().indexOf(";base64,") + 8));
                 if (bytes.length > 10 * 1024 * 1024) throw new IllegalArgumentException();
-                anexo.setTamanho(bytes.length);
-                anexo.setId(anexo.getId() == null ? UUID.randomUUID().toString() : anexo.getId());
-                if (anexo.getTipo() == null) anexo.setTipo("application/octet-stream");
+
+                lista.add(AnexoChamado.builder()
+                        .nome(anexo.nome())
+                        .tipo(anexo.tipo() != null ? anexo.tipo() : "application/octet-stream")
+                        .tamanho(bytes.length)
+                        .url(anexo.url())
+                        .chamado(chamado)
+                        .build());
             } catch (IllegalArgumentException e) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Anexo inválido ou maior que 10 MB.");
             }
         }
+        return lista;
     }
 
     private Chamado salvar(Chamado chamado) {
@@ -128,5 +199,7 @@ public class ChamadoService {
         return repository.save(chamado);
     }
 
-    public void deletarChamado(Long id) { repository.delete(bloquear(id)); }
+    public void deletarChamado(Long id) {
+        repository.delete(bloquear(id));
+    }
 }
