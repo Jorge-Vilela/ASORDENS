@@ -3,7 +3,6 @@ package br.edu.nassau.asordens.chamado;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.data.annotation.Id;
 
 import java.time.OffsetDateTime;
 
