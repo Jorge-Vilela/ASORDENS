@@ -15,6 +15,8 @@ public class ConfiguracaoService implements ApplicationRunner {
         if (!repository.existsById(1L)) repository.save(new Configuracao());
     }
 
-    public Configuracao atual() { return repository.findById(1L).orElseThrow(); }
-    public Configuracao salvar(Configuracao config) { return repository.save(config); }
+    public Configuracao atual() {
+        return repository.findById(1L).orElseThrow(); }
+    public Configuracao salvar(Configuracao config) {
+        return repository.save(config); }
 }
