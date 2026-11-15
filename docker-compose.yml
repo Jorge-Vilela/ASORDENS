@@ -16,11 +16,10 @@ services:
   backend:
     build: ./backend
     healthcheck:
-      test: ["CMD", "curl", "--fail", "--silent", "http://localhost:8080/api/configuracoes"]
-      interval: 3s
+      test: [ "CMD-SHELL", "curl -s -o /dev/null http://localhost:8080/api/auth/login || exit 1" ]
+      interval: 10s
       timeout: 5s
-      start_period: 20s
-      retries: 20
+      retries: 5
     ports:
       - "8080:8080"
     depends_on:
