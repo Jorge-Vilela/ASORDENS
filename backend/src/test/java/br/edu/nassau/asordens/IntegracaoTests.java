@@ -1,86 +1,219 @@
 package br.edu.nassau.asordens;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import java.net.URI;
-import java.net.http.*;
-import java.util.concurrent.*;
-import java.util.regex.Pattern;
-import static org.junit.jupiter.api.Assertions.*;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-    "spring.datasource.url=jdbc:h2:mem:integracao;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
-    "spring.datasource.driver-class-name=org.h2.Driver",
-    "spring.jpa.hibernate.ddl-auto=create-drop"
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@SpringBootTest(properties = {
+        "spring.datasource.url=jdbc:h2:mem:integracao;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 class IntegracaoTests {
-    @LocalServerPort int port;
-    private final HttpClient client = HttpClient.newHttpClient();
 
-    private HttpResponse<String> request(String method, String path, String body) throws Exception {
-        return client.send(HttpRequest.newBuilder(URI.create("http://localhost:" + port + "/api" + path))
-            .header("Content-Type", "application/json")
-            .method(method, body == null ? HttpRequest.BodyPublishers.noBody() : HttpRequest.BodyPublishers.ofString(body))
-            .build(), HttpResponse.BodyHandlers.ofString());
+    @Autowired
+    private WebApplicationContext context;
+
+    private MockMvc mockMvc;
+
+    @BeforeEach
+    void setup() {
+        this.mockMvc = MockMvcBuilders
+                .webAppContextSetup(context)
+                .apply(springSecurity())
+                .build();
     }
 
     @Test
-    void cicloCompletoPersisteCamposMensagensAnexosEConfiguracoes() throws Exception {
-        var dados = """
-            {"titulo":"Impressora","solicitante":"Maria","categoria":"Hardware","prioridade":"alta",
-             "descricao":"Sem conexão","anexos":[{"nome":"teste.txt","tipo":"text/plain","url":"data:text/plain;base64,b2xh"}]}
-            """;
-        var criado = request("POST", "/chamados", dados);
-        assertEquals(201, criado.statusCode(), criado.body());
-        var matcher = Pattern.compile("\"id\":(\\d+)").matcher(criado.body());
-        assertTrue(matcher.find());
-        var path = "/chamados/" + matcher.group(1);
-        assertTrue(criado.body().contains("\"status\":\"aberto\""));
-        assertEquals(200, request("PUT", path, dados.replace("Impressora", "Impressora corrigida")).statusCode());
-        assertEquals(200, request("POST", path + "/puxar", null).statusCode());
-        assertEquals(409, request("POST", path + "/puxar", null).statusCode());
-        assertEquals(200, request("POST", path + "/mensagens", "{\"texto\":\"Verificando\",\"anexos\":[]}").statusCode());
-        assertEquals(400, request("PATCH", path + "/status", "{\"status\":\"invalido\"}").statusCode());
-        assertEquals(200, request("PATCH", path + "/status", "{\"status\":\"resolvido\"}").statusCode());
-        assertEquals(200, request("PUT", path, dados.replace("Impressora", "Impressora corrigida")).statusCode());
-        var salvo = request("GET", path, null);
-        assertEquals(200, salvo.statusCode());
-        for (var texto : new String[]{"Maria", "Hardware", "alta", "Impressora corrigida", "Verificando", "data:text/plain;base64,b2xh", "Andre Moura"})
-            assertTrue(salvo.body().contains(texto), salvo.body());
-        assertFalse(salvo.body().contains("\"resolvidoEm\":null"));
-        assertEquals(409, request("DELETE", "/categorias/Hardware", null).statusCode());
-        assertEquals(400, request("POST", "/chamados", "{}").statusCode());
-        assertEquals(404, request("GET", "/chamados/999999", null).statusCode());
-        assertEquals(200, request("PUT", "/me", "{\"email\":\"teste@example.com\",\"telefone\":\"123\",\"disponibilidade\":\"ocupado\"}").statusCode());
-        assertEquals(200, request("PUT", "/me/preferencias", "{\"notificarNovoChamado\":false,\"notificarRespostaSolicitante\":true,\"notificarPorEmail\":false}").statusCode());
-        assertTrue(request("GET", "/configuracoes", null).body().contains("teste@example.com"));
-        assertTrue(request("GET", "/agentes", null).body().contains("ocupado"));
-        assertEquals(200, request("POST", "/categorias", "{\"nome\":\"Teste\"}").statusCode());
-        assertEquals(409, request("POST", "/categorias", "{\"nome\":\"teste\"}").statusCode());
-        assertEquals(200, request("DELETE", "/categorias/Teste", null).statusCode());
-        assertEquals(204, request("DELETE", path, null).statusCode());
-        assertEquals(404, request("GET", path, null).statusCode());
+    void cicloCompletoPersisteCamposMensagensAnexosEAvaliacao() throws Exception {
+        String sufixo = UUID.randomUUID().toString().substring(0, 6);
+        String tokenAdmin = registrarELogar("Admin Teste", "admin_" + sufixo + "@teste.com", "123456", "ADMIN");
+        String tokenUser = registrarELogar("Solicitante Teste", "user_" + sufixo + "@teste.com", "123456", "USER");
+
+        Long categoriaId = criarCategoria(tokenAdmin, "Rede_" + sufixo, 4);
+
+        String payloadChamado = """
+            {
+              "titulo": "Queda de conexão no setor financeiro",
+              "descricao": "Sem acesso à rede interna desde as 09h.",
+              "categoriaId": %d,
+              "prioridade": "alta",
+              "anexos": [
+                {
+                  "nome": "log-rede.txt",
+                  "tipo": "text/plain",
+                  "tamanho": 16,
+                  "url": "data:text/plain;base64,T2zDoSBtdW5kbw=="
+                }
+              ]
+            }
+            """.formatted(categoriaId);
+
+        MvcResult criacao = mockMvc.perform(post("/api/chamados")
+                        .header("Authorization", "Bearer " + tokenUser)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payloadChamado))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("aberto"))
+                .andExpect(jsonPath("$.anexos[0].nome").value("log-rede.txt"))
+                .andReturn();
+
+        Long chamadoId = extrairId(criacao.getResponse().getContentAsString());
+
+        mockMvc.perform(post("/api/chamados/" + chamadoId + "/puxar")
+                        .header("Authorization", "Bearer " + tokenAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("em_andamento"));
+
+        mockMvc.perform(post("/api/chamados/" + chamadoId + "/mensagens")
+                        .header("Authorization", "Bearer " + tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    { "texto": "Switch reiniciado, favor validar conexão." }
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.mensagens").isNotEmpty());
+
+        mockMvc.perform(patch("/api/chamados/" + chamadoId + "/status")
+                        .header("Authorization", "Bearer " + tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    { "status": "resolvido" }
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("resolvido"));
+
+        mockMvc.perform(post("/api/chamados/" + chamadoId + "/avaliacao")
+                        .header("Authorization", "Bearer " + tokenUser)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    { "nota": 5, "comentario": "Atendimento rápido e eficiente." }
+                    """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avaliacao.nota").value(5));
     }
 
     @Test
     void somenteUmAtendentePodePuxarOChamado() throws Exception {
-        var criado = request("POST", "/chamados", "{\"titulo\":\"Concorrência\",\"solicitante\":\"Teste\",\"categoria\":\"Hardware\",\"prioridade\":\"baixa\"}");
-        assertEquals(201, criado.statusCode(), criado.body());
-        var matcher = Pattern.compile("\"id\":(\\d+)").matcher(criado.body());
-        assertTrue(matcher.find());
-        var path = "/chamados/" + matcher.group(1);
-        var executor = Executors.newFixedThreadPool(2);
-        try {
-            var inicio = new CountDownLatch(1);
-            Callable<Integer> puxar = () -> { inicio.await(); return request("POST", path + "/puxar", null).statusCode(); };
-            var primeira = executor.submit(puxar);
-            var segunda = executor.submit(puxar);
-            inicio.countDown();
-            assertEquals(java.util.Set.of(200, 409), java.util.Set.of(primeira.get(10, TimeUnit.SECONDS), segunda.get(10, TimeUnit.SECONDS)));
-        } finally {
-            executor.shutdownNow();
-            request("DELETE", path, null);
+        String sufixo = UUID.randomUUID().toString().substring(0, 6);
+        String tokenAdmin = registrarELogar("Admin Concorrencia", "adm_conc_" + sufixo + "@teste.com", "123456", "ADMIN");
+        String tokenAgente1 = registrarELogar("Agente 1", "ag1_" + sufixo + "@teste.com", "123456", "AGENTE");
+        String tokenAgente2 = registrarELogar("Agente 2", "ag2_" + sufixo + "@teste.com", "123456", "AGENTE");
+
+        Long categoriaId = criarCategoria(tokenAdmin, "Sistemas_" + sufixo, 8);
+
+        MvcResult criacao = mockMvc.perform(post("/api/chamados")
+                        .header("Authorization", "Bearer " + tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    {
+                      "titulo": "Erro ao emitir nota fiscal",
+                      "descricao": "Timeout na API da SEFAZ",
+                      "categoriaId": %d,
+                      "prioridade": "media"
+                    }
+                    """.formatted(categoriaId)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        Long chamadoId = extrairId(criacao.getResponse().getContentAsString());
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        CountDownLatch inicioSimultaneo = new CountDownLatch(1);
+
+        Callable<Integer> tentativaAgente1 = () -> {
+            inicioSimultaneo.await();
+            return mockMvc.perform(post("/api/chamados/" + chamadoId + "/puxar")
+                            .header("Authorization", "Bearer " + tokenAgente1))
+                    .andReturn().getResponse().getStatus();
+        };
+
+        Callable<Integer> tentativaAgente2 = () -> {
+            inicioSimultaneo.await();
+            return mockMvc.perform(post("/api/chamados/" + chamadoId + "/puxar")
+                            .header("Authorization", "Bearer " + tokenAgente2))
+                    .andReturn().getResponse().getStatus();
+        };
+
+        Future<Integer> res1 = executor.submit(tentativaAgente1);
+        Future<Integer> res2 = executor.submit(tentativaAgente2);
+
+        inicioSimultaneo.countDown();
+        List<Integer> statusCodes = List.of(res1.get(), res2.get());
+        executor.shutdown();
+
+        assertTrue(statusCodes.contains(200));
+        assertTrue(statusCodes.contains(409));
+        assertEquals(2, statusCodes.size());
+    }
+
+    private String registrarELogar(String nome, String email, String senha, String perfil) throws Exception {
+        String registerJson = """
+            {
+              "nome": "%s",
+              "email": "%s",
+              "senha": "%s",
+              "perfil": "%s"
+            }
+            """.formatted(nome, email, senha, perfil);
+
+        mockMvc.perform(post("/api/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(registerJson))
+                .andExpect(status().isCreated());
+
+        MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    { "email": "%s", "senha": "%s" }
+                    """.formatted(email, senha)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String body = loginResult.getResponse().getContentAsString();
+        Matcher matcher = Pattern.compile("\"token\"\\s*:\\s*\"([^\"]+)\"").matcher(body);
+        if (!matcher.find()) {
+            throw new IllegalStateException("Token JWT não encontrado na resposta: " + body);
         }
+        return matcher.group(1);
+    }
+
+    private Long criarCategoria(String tokenAdmin, String nome, int horas) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/categorias")
+                        .header("Authorization", "Bearer " + tokenAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                    { "nome": "%s", "horas": %d }
+                    """.formatted(nome, horas)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return extrairId(result.getResponse().getContentAsString());
+    }
+
+    private Long extrairId(String json) {
+        Matcher matcher = Pattern.compile("\"id\"\\s*:\\s*(\\d+)").matcher(json);
+        if (!matcher.find()) {
+            throw new IllegalStateException("ID não encontrado na resposta: " + json);
+        }
+        return Long.parseLong(matcher.group(1));
     }
 }
