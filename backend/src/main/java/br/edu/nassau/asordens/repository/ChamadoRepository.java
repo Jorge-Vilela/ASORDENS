@@ -1,8 +1,8 @@
 package br.edu.nassau.asordens.repository;
 
-import br.edu.nassau.asordens.chamado.Chamado;
-import br.edu.nassau.asordens.chamado.PrioridadeChamado;
-import br.edu.nassau.asordens.chamado.StatusChamado;
+import br.edu.nassau.asordens.model.Chamado;
+import br.edu.nassau.asordens.model.PrioridadeChamado;
+import br.edu.nassau.asordens.model.StatusChamado;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

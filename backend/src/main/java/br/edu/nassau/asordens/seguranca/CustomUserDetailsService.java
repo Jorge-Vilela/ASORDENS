@@ -1,7 +1,7 @@
 package br.edu.nassau.asordens.seguranca;
 
-import br.edu.nassau.asordens.usuario.Usuario;
-import br.edu.nassau.asordens.usuario.UsuarioRepository;
+import br.edu.nassau.asordens.model.Usuario;
+import br.edu.nassau.asordens.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;

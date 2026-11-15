@@ -1,12 +1,9 @@
 package br.edu.nassau.asordens.service;
 
-import br.edu.nassau.asordens.categoria.CategoriaService;
-import br.edu.nassau.asordens.chamado.*;
-import br.edu.nassau.asordens.chamado.dto.*;
-import br.edu.nassau.asordens.equipe.EquipeService;
+import br.edu.nassau.asordens.dto.*;
+import br.edu.nassau.asordens.model.*;
 import br.edu.nassau.asordens.repository.ChamadoRepository;
-import br.edu.nassau.asordens.usuario.Usuario;
-import br.edu.nassau.asordens.usuario.UsuarioRepository;
+import br.edu.nassau.asordens.repository.UsuarioRepository;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

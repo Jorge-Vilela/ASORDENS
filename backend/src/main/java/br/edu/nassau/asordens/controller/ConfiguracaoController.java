@@ -1,8 +1,8 @@
 package br.edu.nassau.asordens.controller;
 
-import br.edu.nassau.asordens.configuracao.ConfiguracaoService;
-import br.edu.nassau.asordens.configuracao.dto.ConfiguracaoResponseDTO;
-import br.edu.nassau.asordens.configuracao.dto.PerfilConfigRequestDTO;
+import br.edu.nassau.asordens.service.ConfiguracaoService;
+import br.edu.nassau.asordens.dto.ConfiguracaoResponseDTO;
+import br.edu.nassau.asordens.dto.PerfilConfigRequestDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

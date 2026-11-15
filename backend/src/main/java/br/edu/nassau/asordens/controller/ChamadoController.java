@@ -1,8 +1,11 @@
 package br.edu.nassau.asordens.controller;
 
-import br.edu.nassau.asordens.chamado.PrioridadeChamado;
-import br.edu.nassau.asordens.chamado.StatusChamado;
-import br.edu.nassau.asordens.chamado.dto.*;
+import br.edu.nassau.asordens.model.PrioridadeChamado;
+import br.edu.nassau.asordens.model.StatusChamado;
+import br.edu.nassau.asordens.dto.AvaliacaoRequestDTO;
+import br.edu.nassau.asordens.dto.ChamadoRequestDTO;
+import br.edu.nassau.asordens.dto.ChamadoResponseDTO;
+import br.edu.nassau.asordens.dto.InteracoesRequestDTO;
 import br.edu.nassau.asordens.service.ChamadoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
