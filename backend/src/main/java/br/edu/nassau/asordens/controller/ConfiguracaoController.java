@@ -1,75 +1,60 @@
 package br.edu.nassau.asordens.controller;
 
-import br.edu.nassau.asordens.configuracao.*;
-import br.edu.nassau.asordens.repository.ChamadoRepository;
+import br.edu.nassau.asordens.configuracao.ConfiguracaoService;
+import br.edu.nassau.asordens.configuracao.dto.ConfiguracaoResponseDTO;
+import br.edu.nassau.asordens.configuracao.dto.PerfilConfigRequestDTO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.transaction.annotation.Transactional;
-import java.util.*;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-@Transactional
 public class ConfiguracaoController {
+
     private final ConfiguracaoService service;
-    private final ChamadoRepository chamados;
 
     @GetMapping("/configuracoes")
-    public Configuracao configuracoes() { return service.atual(); }
+    public ResponseEntity<ConfiguracaoResponseDTO> configuracoes() {
+        return ResponseEntity.ok(ConfiguracaoResponseDTO.fromEntity(service.atual()));
+    }
 
     @PutMapping("/me")
-    public Configuracao perfil(@RequestBody Map<String, String> dados) {
+    public ResponseEntity<ConfiguracaoResponseDTO> perfil(@Valid @RequestBody PerfilConfigRequestDTO dados) {
         var config = service.atual();
-        var disponibilidade = dados.get("disponibilidade");
-        if (!List.of("online", "ocupado", "ausente").contains(disponibilidade == null ? "" : disponibilidade))
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Disponibilidade inválida.");
-        config.setEmail(dados.getOrDefault("email", ""));
-        config.setTelefone(dados.getOrDefault("telefone", ""));
-        config.setDisponibilidade(disponibilidade);
-        return service.salvar(config);
+        config.setEmail(dados.email() != null ? dados.email() : "");
+        config.setTelefone(dados.telefone() != null ? dados.telefone() : "");
+        config.setDisponibilidade(dados.disponibilidade());
+        return ResponseEntity.ok(ConfiguracaoResponseDTO.fromEntity(service.salvar(config)));
     }
 
     @PutMapping("/me/preferencias")
-    public Configuracao preferencias(@RequestBody Map<String, Boolean> dados) {
+    public ResponseEntity<ConfiguracaoResponseDTO> preferencias(@RequestBody Map<String, Boolean> dados) {
         var config = service.atual();
-        if (!config.getPreferencias().keySet().equals(dados.keySet()) || dados.containsValue(null))
+        if (!config.getPreferencias().keySet().equals(dados.keySet()) || dados.containsValue(null)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Preferências inválidas.");
+        }
         config.setPreferencias(new HashMap<>(dados));
-        return service.salvar(config);
-    }
-
-    @PostMapping("/categorias")
-    public Configuracao adicionar(@RequestBody Map<String, String> dados) {
-        var config = service.atual();
-        var nome = dados.getOrDefault("nome", "").trim();
-        if (nome.isBlank() || nome.length() > 100)
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Informe uma categoria de até 100 caracteres.");
-        if (config.getCategorias().stream().anyMatch(c -> c.equalsIgnoreCase(nome)))
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Essa categoria já existe.");
-        config.setCategorias(new ArrayList<>(config.getCategorias()));
-        config.getCategorias().add(nome);
-        return service.salvar(config);
-    }
-
-    @DeleteMapping("/categorias/{nome}")
-    public Configuracao remover(@PathVariable String nome) {
-        if (chamados.existsByCategoria(nome))
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Não é possível remover uma categoria em uso.");
-        var config = service.atual();
-        var categorias = new ArrayList<>(config.getCategorias());
-        if (!categorias.remove(nome)) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Categoria não encontrada.");
-        config.setCategorias(categorias);
-        return service.salvar(config);
+        return ResponseEntity.ok(ConfiguracaoResponseDTO.fromEntity(service.salvar(config)));
     }
 
     @GetMapping("/agentes")
-    public List<Map<String, Object>> agentes() {
+    public ResponseEntity<List> agentes() {
         var config = service.atual();
-        // O projeto ainda não possui autenticação: um perfil local compartilhado.
-        return List.of(Map.of("id", config.getId(), "nome", config.getNome(), "cargo", config.getCargo(),
-            "equipe", config.getEquipe(), "email", config.getEmail(), "disponibilidade", config.getDisponibilidade()));
+        return ResponseEntity.ok(List.of(Map.of(
+                "id", config.getId(),
+                "nome", config.getNome(),
+                "cargo", config.getCargo(),
+                "equipe", config.getEquipe(),
+                "email", config.getEmail(),
+                "disponibilidade", config.getDisponibilidade()
+        )));
     }
 }
