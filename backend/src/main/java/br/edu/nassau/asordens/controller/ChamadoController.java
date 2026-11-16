@@ -1,11 +1,8 @@
 package br.edu.nassau.asordens.controller;
 
+import br.edu.nassau.asordens.dto.*;
 import br.edu.nassau.asordens.model.PrioridadeChamado;
 import br.edu.nassau.asordens.model.StatusChamado;
-import br.edu.nassau.asordens.dto.AvaliacaoRequestDTO;
-import br.edu.nassau.asordens.dto.ChamadoRequestDTO;
-import br.edu.nassau.asordens.dto.ChamadoResponseDTO;
-import br.edu.nassau.asordens.dto.InteracoesRequestDTO;
 import br.edu.nassau.asordens.service.ChamadoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -57,6 +54,14 @@ public class ChamadoController {
             @PathVariable Long id, @RequestBody Map<String, String> dados) {
         return ResponseEntity.ok(service.atualizarStatus(id, StatusChamado.fromString(dados.get("status"))));
     }
+    @PatchMapping("/{id}/assumir")
+    public ResponseEntity<ChamadoResponseDTO> assumir(@PathVariable Long id) {
+        return ResponseEntity.ok(service.puxar(id));
+    }
+    @PatchMapping("/{id}/finalizar")
+    public ResponseEntity<ChamadoResponseDTO> finalizar(@PathVariable Long id) {
+        return ResponseEntity.ok(service.finalizar(id));
+    }
 
     @PostMapping("/{id}/puxar")
     public ResponseEntity<ChamadoResponseDTO> puxar(@PathVariable Long id) {
@@ -73,6 +78,16 @@ public class ChamadoController {
     public ResponseEntity<ChamadoResponseDTO> avaliar(
             @PathVariable Long id, @Valid @RequestBody AvaliacaoRequestDTO dto) {
         return ResponseEntity.ok(service.avaliarChamado(id, dto));
+    }
+    @PostMapping("/{id}/interacoes")
+    public ResponseEntity<ChamadoResponseDTO> criarInteracao(
+            @PathVariable Long id, @Valid @RequestBody InteracoesRequestDTO dto) {
+        return ResponseEntity.ok(service.enviarMensagem(id, dto));
+    }
+    @PostMapping("/{id}/anexos")
+    public ResponseEntity<ChamadoResponseDTO> adicionarAnexo(
+            @PathVariable Long id, @Valid @RequestBody AnexoDTO dto) {
+        return ResponseEntity.ok(service.adicionarAnexo(id, dto));
     }
 
     @DeleteMapping("/{id}")
