@@ -44,6 +44,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/equipes", "/api/categorias").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/equipes/**", "/api/categorias/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/equipes/**", "/api/categorias/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/chamados/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/chamados/*/assumir", "/api/chamados/*/finalizar").hasAnyRole("AGENTE", "ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/chamados/*/puxar").hasAnyRole("AGENTE", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
