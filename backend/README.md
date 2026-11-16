@@ -1,100 +1,245 @@
-
 # AS ORDENS 🛠️
 
-Este é o repositório do projeto **AS ORDENS**, uma API REST desenvolvida em Java com Spring Boot para o gerenciamento de ordens de serviço e chamados. O projeto utiliza o banco de dados PostgreSQL e está configurado para ser executado facilmente em containers Docker.
+API REST desenvolvida em Java com Spring Boot para o gerenciamento de ordens de serviço, atendimento de chamados técnicos, equipes, categorias e relatórios gerenciais.
 
-## 🚀 Tecnologias Utilizadas
-
-* **Java 17+** (A aplicação é compilada para Java 17, mas a imagem Docker utiliza JDK 21)
-* **Spring Boot** (WebMVC, Data JPA, Validation)
-* **PostgreSQL** (Banco de dados relacional)
-* **Lombok** (Redução de código boilerplate)
-* **Maven** (Gerenciamento de dependências e build)
-* **Docker & Docker Compose** (Containerização e orquestração)
-
-## 📋 Pré-requisitos
-
-Para executar este projeto localmente, você precisará ter instalado em sua máquina:
-
-* [Docker](https://www.docker.com/) e [Docker Compose](https://docs.docker.com/compose/) (Recomendado)
-* **OU** [Java 17+](https://adoptium.net/) e uma instância do PostgreSQL rodando localmente (Caso não queira utilizar o Docker).
+Projeto acadêmico da disciplina de **Back-End Frameworks** — Centro Universitário Maurício de Nassau (UNINASSAU).
 
 ---
 
-## 🐳 Como executar com Docker (Recomendado)
+## 👥 Integrantes
 
-O projeto já possui um arquivo `docker-compose.yml` pré-configurado que sobe tanto o banco de dados PostgreSQL quanto a aplicação Spring Boot de forma automatizada.
+- **Jorge Vilela**
+- **André Gomes Moura**
+- **Lucas Matheus Pereira da Silva**
+- **Bernardo Augusto Franco**
+- **Kauã Nyllo**
 
-1. Clone o repositório ou navegue até a pasta raiz do projeto.
-2. Abra o terminal e execute o seguinte comando para construir a imagem e subir os containers:
+---
+
+## 🎯 Funcionalidades
+
+- **Autenticação e autorização:** login via JWT (Bearer Token) com controle de acesso por perfis (`ADMIN`, `AGENTE` e `USER`) e senhas criptografadas com BCrypt.
+- **Gestão de chamados:** abertura, listagem paginada e filtrada (por status, prioridade, categoria e texto), assunção de atendimento (`puxar`), interações/mensagens, anexos, resolução e avaliação do atendimento.
+- **Equipes e categorias:** cadastro e manutenção de equipes técnicas e de categorias de atendimento com SLA (em horas).
+- **Usuários e configurações:** gerenciamento de usuários e preferências do sistema.
+- **Relatórios:** consulta de indicadores gerenciais de chamados.
+- **Tratamento global de erros:** respostas JSON padronizadas para 400, 401, 403, 404, 409 e 500.
+- **Monitoramento:** health check via Spring Boot Actuator.
+
+---
+
+## 🚀 Tecnologias
+
+- **Java 17+** e **Spring Boot** (Web MVC, Data JPA, Validation, Security, Actuator)
+- **PostgreSQL** (produção/Docker) e **H2** (testes)
+- **JWT (`jjwt`)** — autenticação stateless
+- **Springdoc OpenAPI / Swagger UI** — documentação interativa
+- **JUnit 5 e Mockito** — testes unitários e de integração (MockMvc)
+- **Lombok** e **Maven**
+- **Docker e Docker Compose**
+
+---
+
+## 🏗️ Arquitetura
+
+A aplicação segue a arquitetura em camadas, organizada em pacotes por camada:
+
+```
+Controller → Service → Repository → Spring Data JPA → PostgreSQL
+```
+
+```
+br.edu.nassau.asordens
+├── controller   # endpoints REST (sem regra de negócio)
+├── service      # regras de negócio e transações
+├── repository   # acesso a dados (Spring Data JPA)
+├── model        # entidades JPA e enums
+├── dto          # DTOs de entrada e saída
+├── exception    # exceções de domínio e GlobalExceptionHandler
+└── seguranca    # SecurityConfig, filtro JWT, JwtService
+```
+
+---
+
+## 🗄️ Modelagem de entidades e relacionamentos
+
+| Entidade | Descrição | Relacionamentos |
+| :--- | :--- | :--- |
+| **Usuario** | Solicitantes, agentes e administradores (`id`, `nome`, `email`, `senha`, `perfil`, `ativo`) | `N:1` com `Equipe` |
+| **Equipe** | Grupos de atendimento técnico (`id`, `nome`, `descricao`, `ativo`) | `1:N` com `Usuario` e `Chamado` |
+| **Categoria** | Classificação dos chamados e SLA (`id`, `nome`, `horas`) | `1:N` com `Chamado` |
+| **Chamado** | Entidade central (`id`, `titulo`, `descricao`, `status`, `prioridade`, `dataAbertura`, `atualizadoEm`, `resolvidoEm`) | `N:1` com `Usuario` (solicitante e agente), `Categoria` e `Equipe`; `1:N` bidirecional com `InteracaoChamado` e `AnexoChamado`; `1:1` bidirecional com `AvaliacaoChamado` |
+| **InteracaoChamado** | Histórico de mensagens do chamado (`id`, `texto`, `enviadoEm`, `chamado`, `autor`) | `N:1` com `Chamado` e `Usuario` |
+| **AnexoChamado** | Arquivos vinculados ao chamado (`id`, `nome`, `tipo`, `tamanho`, `url`, `chamado`) | `N:1` com `Chamado` |
+| **AvaliacaoChamado** | Nota e feedback após a resolução (`id`, `nota`, `comentario`, `dataAvaliacao`, `chamado`) | `1:1` com `Chamado` |
+| **Configuracao** | Parâmetros e preferências operacionais da plataforma | — |
+
+**Enums:** `Perfil`, `StatusChamado`, `PrioridadeChamado`.
+
+---
+
+## 📋 Pré-requisitos
+
+- [Docker](https://www.docker.com/) e [Docker Compose](https://docs.docker.com/compose/) **(recomendado)**
+- **ou** [Java 17+](https://adoptium.net/) e [PostgreSQL](https://www.postgresql.org/) instalados localmente.
+
+---
+
+## ⚙️ Variáveis de ambiente
+
+Configure as variáveis abaixo no ambiente ou em um arquivo `.env` (**não versione valores reais**):
+
+| Variável | Descrição | Exemplo |
+| :--- | :--- | :--- |
+| `SPRING_DATASOURCE_URL` | URL JDBC do PostgreSQL | `jdbc:postgresql://localhost:5432/chamados_db` |
+| `SPRING_DATASOURCE_USERNAME` | Usuário do banco | `seu_usuario` |
+| `SPRING_DATASOURCE_PASSWORD` | Senha do banco | `sua_senha` |
+| `JWT_SECRET` | Chave usada na assinatura dos tokens JWT | `sua_chave_secreta_jwt_aqui` |
+
+---
+
+## 🐳 Como executar com Docker (recomendado)
+
+Na raiz do projeto (onde está o `docker-compose.yml`):
 
 ```bash
 docker-compose up -d --build
 ```
 
-3. A aplicação estará disponível na porta `8080`.
-   * **Base URL da API:** `http://localhost:8080`
+A API ficará disponível em `http://localhost:8080`.
 
-4. Para parar a execução dos containers, utilize:
+Para encerrar os containers:
+
 ```bash
 docker-compose down
 ```
 
 ---
 
-## 💻 Como executar localmente (Sem Docker)
+## 💻 Como executar localmente (sem Docker)
 
-Se preferir rodar a aplicação diretamente na sua máquina sem o Docker para a API, siga os passos abaixo:
+1. Garanta que o PostgreSQL está rodando na porta `5432` com o banco `chamados_db` criado.
+2. Defina as variáveis de ambiente da seção anterior.
+3. Na pasta `backend/`, execute com o Maven Wrapper:
 
-### 1. Configurar o Banco de Dados
-Certifique-se de ter o PostgreSQL rodando localmente (na porta `5432`) com as seguintes credenciais:
-* **Host:** `localhost`
-* **Porta:** `5432`
-* **Database:** `chamados_db`
-* **Usuário:** `postgres`
-* **Senha:** `2030`
+**Linux/macOS**
 
-> *Nota: Você pode subir apenas o banco de dados utilizando o comando `docker-compose up -d db`.*
-
-### 2. Configurar Variáveis de Ambiente
-Como a aplicação local tentará se conectar à URL do Docker por padrão, você precisará sobrescrever as variáveis de ambiente antes de rodar o projeto, ou ajustá-las temporariamente no `application.properties`/`application.yml`:
-
-```properties
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/chamados_db
-SPRING_DATASOURCE_USERNAME=postgres
-SPRING_DATASOURCE_PASSWORD=2030
-```
-
-### 3. Rodar o Projeto com Maven Wrapper
-No terminal, na raiz do projeto, execute o comando para compilar e iniciar a aplicação:
-
-**No Linux/macOS:**
 ```bash
-./mvnw clean install -DskipTests
 ./mvnw spring-boot:run
 ```
 
-**No Windows:**
-```cmd
-mvnw.cmd clean install -DskipTests
+**Windows**
+
+```bat
 mvnw.cmd spring-boot:run
 ```
 
-A API estará acessível em `http://localhost:8080`.
+---
+
+## 🧪 Como executar os testes
+
+Na pasta `backend/`:
+
+**Linux/macOS**
+
+```bash
+./mvnw test
+```
+
+**Windows**
+
+```bat
+mvnw.cmd test
+```
 
 ---
 
-## 🏗️ Estrutura do Projeto (Build)
+## 🔑 Usuários para teste (seed inicial)
 
-O projeto utiliza um build multi-stage no Docker (`Dockerfile`):
-1. **Estágio de Build:** Utiliza a imagem `maven:3.9-eclipse-temurin-21` para baixar as dependências e gerar o pacote `.jar` (pulando os testes para maior agilidade).
-2. **Estágio de Execução:** Utiliza a imagem `eclipse-temurin:21-jdk` apenas com o que é necessário para rodar a aplicação, expondo a porta `8080`.
+Na inicialização (`DataLoader`), os usuários abaixo são criados automaticamente caso o banco esteja vazio:
+
+| Perfil | E-mail | Senha |
+| :--- | :--- | :--- |
+| `ADMIN` | `admin@asordens.com` | `123456` |
+| `AGENTE` | `agente@asordens.com` | `123456` |
+
+> Credenciais de **demonstração**, usadas apenas para testes locais.
+
+Para acessar endpoints protegidos, faça login e envie o token no cabeçalho:
+
+```
+Authorization: Bearer <seu_token_jwt>
+```
 
 ---
 
-## 🤝 Contribuindo
+## 📖 Documentação da API (Swagger / OpenAPI)
 
-Se desejar contribuir com o projeto, fique à vontade para abrir uma *Issue* ou enviar um *Pull Request*.
+Com a aplicação em execução:
+
+- **Swagger UI:** http://localhost:8080/swagger-ui/index.html
+- **OpenAPI JSON:** http://localhost:8080/v3/api-docs
+
+---
+
+## 🔌 Principais endpoints
+
+### Autenticação e monitoramento (públicos)
+
+| Método | Rota | Descrição |
+| :--- | :--- | :--- |
+| `POST` | `/api/auth/login` | Autentica o usuário e retorna o token JWT |
+| `GET` | `/actuator/health` | Status de saúde da aplicação e do banco |
+
+### Chamados (protegidos)
+
+| Método | Rota | Descrição |
+| :--- | :--- | :--- |
+| `GET` | `/api/chamados` | Lista com paginação, ordenação e filtros (`status`, `prioridade`, `categoriaId`, `busca`) |
+| `GET` | `/api/chamados/{id}` | Detalhes de um chamado |
+| `POST` | `/api/chamados` | Cria um chamado |
+| `PATCH` | `/api/chamados/{id}/puxar` | Atribui o chamado ao agente autenticado e muda o status para `EM_ANDAMENTO` |
+| `POST` | `/api/chamados/{id}/interacoes` | Adiciona uma interação/mensagem |
+| `PATCH` | `/api/chamados/{id}/resolver` | Marca o chamado como `RESOLVIDO` |
+| `POST` | `/api/chamados/{id}/avaliar` | Registra a avaliação do atendimento |
+| `DELETE` | `/api/chamados/{id}` | Remove um chamado (**somente `ADMIN`**) |
+
+### Demais recursos (protegidos)
+
+| Método | Rota | Descrição |
+| :--- | :--- | :--- |
+| `GET/POST/PUT/DELETE` | `/api/usuarios` | Gerenciamento de usuários |
+| `GET/POST/PUT/DELETE` | `/api/equipes` | Gerenciamento de equipes técnicas |
+| `GET/POST/PUT/DELETE` | `/api/categorias` | Gerenciamento de categorias e SLA |
+| `GET` | `/api/relatorios` | Dados consolidados para relatórios |
+| `GET/PUT` | `/api/configuracoes` | Consulta e atualização das configurações |
+
+---
+
+## 🚨 Padrão de erros
+
+Todas as falhas retornam JSON no formato:
+
+```json
+{
+  "timestamp": "2026-11-16T12:00:00",
+  "status": 404,
+  "erro": "Chamado não encontrado",
+  "detalhes": null
+}
+```
+
+| Status | Situação |
+| :--- | :--- |
+| `400` | Dados inválidos (Bean Validation) |
+| `401` | Credenciais inválidas ou token ausente |
+| `403` | Perfil sem permissão |
+| `404` | Recurso inexistente |
+| `409` | Conflito de regra de negócio |
+| `500` | Erro interno inesperado |
+
+---
 
 ## 📄 Licença
-Projeto desenvolvido para fins educacionais / institucionais (Grupo Ser Educacional / Uninassau).
+
+Projeto acadêmico desenvolvido para a disciplina de Back-End Frameworks — Centro Universitário Maurício de Nassau (UNINASSAU).
