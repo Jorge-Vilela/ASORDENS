@@ -111,7 +111,6 @@ public class ChamadoService {
         if (chamado.getStatus() != StatusChamado.ABERTO) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Somente chamados abertos podem ser puxados.");
         }
-
         chamado.setAgente(agenteLogado);
         chamado.setStatus(StatusChamado.EM_ANDAMENTO);
         if (chamado.getEquipe() == null && agenteLogado.getEquipe() != null) {
@@ -126,6 +125,36 @@ public class ChamadoService {
                 .build();
         chamado.getInteracoes().add(interacao);
 
+        return ChamadoResponseDTO.fromEntity(salvar(chamado));
+    }
+    public ChamadoResponseDTO finalizar(Long id) {
+        var chamado = bloquear(id);
+        var usuarioLogado = getUsuarioLogado();
+
+        if (chamado.getStatus() == StatusChamado.RESOLVIDO || chamado.getStatus() == StatusChamado.FECHADO) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Este chamado já está finalizado.");
+        }
+
+        chamado.setStatus(StatusChamado.RESOLVIDO);
+        if (chamado.getResolvidoEm() == null) {
+            chamado.setResolvidoEm(OffsetDateTime.now());
+        }
+
+        var interacao = InteracaoChamado.builder()
+                .chamado(chamado)
+                .autor(usuarioLogado)
+                .texto("Chamado finalizado por " + usuarioLogado.getNome())
+                .enviadoEm(OffsetDateTime.now())
+                .build();
+        chamado.getInteracoes().add(interacao);
+
+        return ChamadoResponseDTO.fromEntity(salvar(chamado));
+    }
+
+    public ChamadoResponseDTO adicionarAnexo(Long id, AnexoDTO anexoDto) {
+        var chamado = bloquear(id);
+        List<AnexoChamado> validados = validarEConverterAnexos(List.of(anexoDto), chamado);
+        chamado.getAnexos().addAll(validados);
         return ChamadoResponseDTO.fromEntity(salvar(chamado));
     }
 

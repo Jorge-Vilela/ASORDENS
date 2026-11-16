@@ -1,5 +1,6 @@
 package br.edu.nassau.asordens.service;
 
+import br.edu.nassau.asordens.exception.RegraNegocioException;
 import br.edu.nassau.asordens.model.Equipe;
 import br.edu.nassau.asordens.model.Perfil;
 import br.edu.nassau.asordens.model.Usuario;
@@ -26,7 +27,7 @@ public class UsuarioService {
     @Transactional
     public UsuarioResponseDTO registrar(UsuarioRequestDTO dto) {
         if (usuarioRepository.existsByEmail(dto.email())) {
-            throw new IllegalArgumentException("E-mail já cadastrado no sistema. ");
+            throw new RegraNegocioException("E-mail já cadastrado no sistema. ");
         }
         Equipe equipe = dto.equipeId() != null ? equipeService.buscarEntidade(dto.equipeId()) : null;
 
