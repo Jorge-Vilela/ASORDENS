@@ -12,7 +12,7 @@ const relatorios = () => import('../views/RelatoriosView.vue')
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/login', component: { template: '<div></div>' }, meta: { public: true } },
+    { path: '/login', component: { render: () => null }, meta: { public: true } },
     {
       path: '/',
       component: MainLayout,

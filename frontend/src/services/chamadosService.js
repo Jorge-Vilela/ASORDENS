@@ -17,7 +17,7 @@ export const normalizar = (c) => ({
 const idApi = (id) => encodeURIComponent(String(id).replace(/^CHM-/, ''))
 
 async function anexosParaApi(anexos = []) {
-  return Promise.all(anexos.map(async ({ arquivo, id, nome, tipo, tamanho, url }) => {
+  return Promise.all(anexos.map(async ({ arquivo, nome, tipo, tamanho, url }) => {
     if (arquivo) {
       url = await new Promise((resolve, reject) => {
         const leitor = new FileReader()
@@ -26,7 +26,7 @@ async function anexosParaApi(anexos = []) {
         leitor.readAsDataURL(arquivo)
       })
     }
-    return { id, nome, tipo: tipo || 'application/octet-stream', tamanho, url }
+    return { nome, tipo: tipo || 'application/octet-stream', tamanho, url }
   }))
 }
 

@@ -18,7 +18,9 @@ api.interceptors.response.use(
       localStorage.removeItem('asordens_usuario')
       window.location.assign('/login')
     }
-    const mensagem = (error.config?.url?.includes('/auth/login') && [401, 403].includes(error.response?.status) ? 'E-mail ou senha invalidos.' : null) || error.response?.data?.detail || error.response?.data?.message || error.response?.data?.erro
+    const detalhes = error.response?.data?.detalhes
+    const mensagemValidacao = Array.isArray(detalhes) ? detalhes.map((item) => item.mensagem).filter(Boolean).join(' ') : ''
+    const mensagem = (error.config?.url?.includes('/auth/login') && [401, 403].includes(error.response?.status) ? 'E-mail ou senha inválidos.' : null) || mensagemValidacao || error.response?.data?.detail || error.response?.data?.message || error.response?.data?.erro
       || (error.response?.status === 403 ? 'Voce nao tem permissao para realizar esta acao.' : error.response ? `A operação falhou (${error.response.status}).` : 'Não foi possível conectar à API. Tente novamente.')
     erroApi.value = mensagem
     return Promise.reject(new Error(mensagem))

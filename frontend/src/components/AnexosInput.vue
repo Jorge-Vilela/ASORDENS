@@ -24,6 +24,8 @@ function adicionar(evento) {
       erros.push(`${arquivo.name}: tipo não permitido`)
     } else if (arquivo.size > MAX_BYTES) {
       erros.push(`${arquivo.name}: maior que 10 MB`)
+    } else if (props.modelValue.length + novos.length >= 10) {
+      erros.push(`${arquivo.name}: limite de 10 anexos por chamado`)
     } else {
       novos.push({
         id: crypto.randomUUID(),
