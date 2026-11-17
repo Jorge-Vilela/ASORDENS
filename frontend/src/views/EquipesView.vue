@@ -11,7 +11,7 @@ const agentes = ref([])
 const carregando = ref(true)
 const filtroEquipe = ref('todas')
 
-const CAPACIDADE = 5 // chamados simultâneos considerados "carga cheia"
+const CAPACIDADE = 5
 
 async function carregar() {
   agentes.value = await equipesService.listar()

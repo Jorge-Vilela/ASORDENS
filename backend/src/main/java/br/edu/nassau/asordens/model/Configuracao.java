@@ -11,7 +11,11 @@ import java.util.*;
 @Table(name = "tb_configuracao")
 public class Configuracao {
     @Id
-    private Long id = 1L;
+    private Long id;
+    @OneToOne(fetch = FetchType.LAZY)
+    @MapsId
+    @JoinColumn(name = "id")
+    private Usuario usuario;
     private String nome = "Andre Moura";
     private String cargo = "Agente de TI";
     private String equipe = "Suporte";

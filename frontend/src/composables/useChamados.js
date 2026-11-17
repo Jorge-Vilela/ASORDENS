@@ -1,10 +1,7 @@
-import { ref } from 'vue'
-
-// Estado fora da função: é compartilhado por todos os componentes
-const formAberto = ref(false)
+import { ref } from 'vue'const formAberto = ref(false)
 const chamadoEmEdicao = ref(null)
 const detalheId = ref(null)
-const versao = ref(0) // sobe 1 a cada alteração; as telas escutam pra recarregar
+const versao = ref(0)
 
 export function useChamados() {
   return {

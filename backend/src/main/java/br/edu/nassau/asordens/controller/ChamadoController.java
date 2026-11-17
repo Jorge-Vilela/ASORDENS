@@ -34,8 +34,17 @@ public class ChamadoController {
             @RequestParam(required = false) PrioridadeChamado prioridade,
             @RequestParam(required = false) Long equipeId,
             @RequestParam(required = false) String titulo,
+            @RequestParam(required = false) Long categoriaId,
+            @RequestParam(required = false) Long agenteId,
+            @RequestParam(defaultValue = "false") boolean semAgente,
+            @RequestParam(defaultValue = "false") boolean somenteAtivos,
             @PageableDefault(size = 10, sort = "dataAbertura", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(service.listarPaginado(status, prioridade, equipeId, titulo, pageable));
+        return ResponseEntity.ok(service.listarFiltros(status, prioridade, equipeId, categoriaId, agenteId, semAgente, somenteAtivos, titulo, pageable));
+    }
+
+    @GetMapping("/busca")
+    public ResponseEntity<Page<ChamadoResponseDTO>> buscarPorTitulo(@RequestParam String titulo, Pageable pageable) {
+        return ResponseEntity.ok(service.buscarPorTitulo(titulo, pageable));
     }
 
     @GetMapping("/{id}")

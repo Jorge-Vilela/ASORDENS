@@ -20,6 +20,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -42,7 +43,7 @@ class ChamadoControllerTest {
     @Test
     @DisplayName("GET /api/chamados deve retornar 200 OK para usuário autenticado")
     void deveRetornar200AoListarChamados() throws Exception {
-        when(chamadoService.listarPaginado(any(), any(), any(), any(), any()))
+        when(chamadoService.listarFiltros(any(), any(), any(), any(), any(), anyBoolean(), anyBoolean(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));
 
         mockMvc.perform(get("/api/chamados")

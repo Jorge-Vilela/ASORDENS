@@ -1,6 +1,7 @@
 package br.edu.nassau.asordens.seguranca;
 
 import lombok.RequiredArgsConstructor;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -35,16 +36,26 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint((request, response, exception) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"erro\":\"Sessão expirada ou inválida. Faça login novamente.\"}");
+                }))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/usuarios").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/usuarios/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/usuarios/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/usuarios/*/perfil").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/usuarios/*/equipe").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/usuarios/*/desativar").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/equipes", "/api/categorias").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/equipes/**", "/api/categorias/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/equipes/**", "/api/categorias/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/chamados/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/chamados/*/status").hasAnyRole("AGENTE", "ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/chamados/*/assumir", "/api/chamados/*/finalizar").hasAnyRole("AGENTE", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/chamados/*/puxar").hasAnyRole("AGENTE", "ADMIN")
                         .anyRequest().authenticated()

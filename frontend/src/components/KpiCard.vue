@@ -3,7 +3,7 @@ defineProps({
   valor: { type: Number, required: true },
   rotulo: { type: String, required: true },
   icone: { type: Object, required: true },
-  tom: { type: String, default: 'azul' }, 
+  tom: { type: String, default: 'azul' },
 })
 </script>
 

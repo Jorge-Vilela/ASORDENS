@@ -12,11 +12,11 @@ defineEmits(['novo-chamado'])
 const totalAbertos = computed(() => chamados.filter((c) => c.status === 'aberto').length)
 const totalAndamento = computed(() => chamados.filter((c) => c.status === 'em_andamento').length)
 
-const iniciais = usuarioAtual.nome
+const iniciais = computed(() => usuarioAtual.nome
   .split(' ')
   .map((p) => p[0])
   .slice(0, 2)
-  .join('')
+  .join(''))
 
 const menuChamados = computed(() => [
   { to: '/', label: 'Dashboard', icon: ChartColumn },
@@ -27,11 +27,13 @@ const menuChamados = computed(() => [
   { to: '/chamados', label: 'Todos os chamados', icon: ClipboardList },
 ])
 
-const menuGerenciar = [
-  { to: '/equipes', label: 'Equipes', icon: Users },
+const menuGerenciar = computed(() => [
+  { to: '/equipes', label: 'Equipes', icon: Users, admin: true },
+  { to: '/categorias', label: 'Categorias', icon: Settings, admin: true },
+  { to: '/usuarios', label: 'Usuarios', icon: Users, admin: true },
   { to: '/relatorios', label: 'Relatórios', icon: ChartColumn },
   { to: '/configuracoes', label: 'Configurações', icon: Settings },
-]
+].filter(item => !item.admin || usuarioAtual.perfil === 'ADMIN'))
 </script>
 
 <template>
@@ -241,5 +243,14 @@ nav {
 
 .usuario-seta {
   color: var(--color-text-muted);
+}
+@media (max-width: 720px) {
+  .sidebar { width: 66px; }
+  .marca { justify-content: center; padding: 16px 8px; }
+  .marca-nome, .secao, .item-label, .badge, .usuario-info, .usuario-seta { display: none; }
+  .btn-novo { margin: 14px 8px 8px; font-size: 0; }
+  nav { padding: 4px 8px; }
+  .item { justify-content: center; padding: 10px; }
+  .usuario { justify-content: center; padding: 14px 8px; }
 }
 </style>

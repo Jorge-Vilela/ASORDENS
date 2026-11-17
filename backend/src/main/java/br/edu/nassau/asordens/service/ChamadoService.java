@@ -34,6 +34,11 @@ public class ChamadoService {
                 .orElseThrow(() -> new EntityNotFoundException("Usuário autenticado não encontrado."));
     }
 
+    @Transactional(readOnly = true)
+    public Page<ChamadoResponseDTO> buscarPorTitulo(String titulo, Pageable pageable) {
+        return repository.findByTituloContainingIgnoreCase(titulo, pageable).map(ChamadoResponseDTO::fromEntity);
+    }
+
     public ChamadoResponseDTO criarChamado(ChamadoRequestDTO dto) {
         var chamado = new Chamado();
         chamado.setSolicitante(getUsuarioLogado());
@@ -46,8 +51,13 @@ public class ChamadoService {
     @Transactional(readOnly = true)
     public Page<ChamadoResponseDTO> listarPaginado(
             StatusChamado status, PrioridadeChamado prioridade, Long equipeId, String titulo, Pageable pageable) {
-        return repository.buscarComFiltros(status, prioridade, equipeId, titulo, pageable)
+        return repository.buscarComFiltros(status, prioridade, equipeId, titulo == null ? "" : titulo, pageable)
                 .map(ChamadoResponseDTO::fromEntity);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<ChamadoResponseDTO> listarFiltros(StatusChamado status, PrioridadeChamado prioridade, Long equipeId, Long categoriaId, Long agenteId, boolean semAgente, boolean somenteAtivos, String titulo, Pageable pageable) {
+        return repository.buscarFiltrosCompletos(status, prioridade, equipeId, categoriaId, agenteId, semAgente, somenteAtivos, titulo == null ? "" : titulo, pageable).map(ChamadoResponseDTO::fromEntity);
     }
 
     @Transactional(readOnly = true)

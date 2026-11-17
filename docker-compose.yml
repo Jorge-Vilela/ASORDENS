@@ -8,15 +8,17 @@ services:
       retries: 20
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 2030
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-2030}
       POSTGRES_DB: chamados_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
 
   backend:
     build: ./backend
     healthcheck:
-      test: [ "CMD-SHELL", "curl -s -o /dev/null http://localhost:8080/api/auth/login || exit 1" ]
+      test: [ "CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health >/dev/null || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -28,7 +30,8 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/chamados_db
       SPRING_DATASOURCE_USERNAME: postgres
-      SPRING_DATASOURCE_PASSWORD: 2030
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-2030}
+      JWT_SECRET: ${JWT_SECRET:-chave-local-de-demonstracao-troque-antes-de-publicar}
 
   frontend:
     build: ./frontend
@@ -39,3 +42,6 @@ services:
     depends_on:
       backend:
         condition: service_healthy
+
+volumes:
+  pgdata:

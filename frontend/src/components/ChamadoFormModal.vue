@@ -1,27 +1,30 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import BaseModal from './BaseModal.vue'
 import AnexosInput from './AnexosInput.vue'
 import { useChamados } from '../composables/useChamados'
 import { chamadosService } from '../services/chamadosService'
 import { erroApi } from '../services/api'
-import { categorias } from '../utils/chamados'
+import { api } from '../services/api'
+const categorias = ref([])
+const equipes = ref([])
+onMounted(async () => { try { const [c, e] = await Promise.all([api.get('/categorias'), api.get('/equipes')]); categorias.value = c.data; equipes.value = e.data } catch {} })
 
 const { chamadoEmEdicao, fecharForm, atualizarListas, abrirDetalhe } = useChamados()
 
-const edicao = chamadoEmEdicao.value // null = criando um novo
+const edicao = chamadoEmEdicao.value
 
 const form = ref({
   titulo: edicao?.titulo ?? '',
-  solicitante: edicao?.solicitante ?? '',
-  categoria: edicao?.categoria ?? categorias[0],
+  categoriaId: edicao?.categoriaId ?? '',
+  equipeId: edicao?.equipeId ?? '',
   prioridade: edicao?.prioridade ?? 'baixa',
   descricao: edicao?.descricao ?? '',
   anexos: [...(edicao?.anexos ?? [])],
 })
 
 const salvando = ref(false)
-const valido = computed(() => form.value.titulo.trim() && form.value.solicitante.trim())
+const valido = computed(() => form.value.titulo.trim() && form.value.categoriaId)
 
 async function salvar() {
   if (!valido.value || salvando.value) return
@@ -30,7 +33,8 @@ async function salvar() {
   const dados = {
     ...form.value,
     titulo: form.value.titulo.trim(),
-    solicitante: form.value.solicitante.trim(),
+    equipeId: form.value.equipeId || null,
+    prioridade: form.value.prioridade.toUpperCase(),
   }
 
   try {
@@ -38,7 +42,7 @@ async function salvar() {
     await chamadosService.atualizar(edicao.id, dados)
     atualizarListas()
     fecharForm()
-    abrirDetalhe(edicao.id) // volta pro detalhe do chamado editado
+    abrirDetalhe(edicao.id)
   } else {
     await chamadosService.criar(dados)
     atualizarListas()
@@ -57,16 +61,11 @@ async function salvar() {
         <input v-model="form.titulo" type="text" placeholder="Descreva o problema brevemente" />
       </label>
 
-      <label class="campo">
-        <span>Solicitante</span>
-        <input v-model="form.solicitante" type="text" placeholder="Nome do solicitante" />
-      </label>
-
-      <div class="duas-colunas">
+<div class="duas-colunas">
         <label class="campo">
           <span>Categoria</span>
-          <select v-model="form.categoria">
-            <option v-for="c in categorias" :key="c" :value="c">{{ c }}</option>
+          <select v-model="form.categoriaId">
+            <option disabled value="">Selecione</option><option v-for="c in categorias" :key="c.id" :value="c.id">{{ c.nome }}</option>
           </select>
         </label>
 
@@ -85,6 +84,7 @@ async function salvar() {
         <textarea v-model="form.descricao" rows="4" placeholder="Detalhe o problema..."></textarea>
       </label>
 
+      <label class="campo"><span>Equipe</span><select v-model="form.equipeId"><option value="">Sem equipe</option><option v-for="e in equipes" :key="e.id" :value="e.id">{{ e.nome }}</option></select></label>
       <div class="campo">
         <span>Anexos</span>
         <AnexosInput v-model="form.anexos" />

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 const props = defineProps({
-  dados: { type: Array, required: true }, // [{ dia, abertos, resolvidos }]
+  dados: { type: Array, required: true },
 })
 
 const maximo = computed(() => {

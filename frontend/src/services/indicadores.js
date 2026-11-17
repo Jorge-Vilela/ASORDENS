@@ -35,7 +35,7 @@ export function relatorioDosChamados(chamados, dias) {
   const inicio = new Date()
   inicio.setHours(0, 0, 0, 0)
   inicio.setDate(inicio.getDate() - dias + 1)
-  const doPeriodo = chamados.filter((c) => new Date(c.atualizadoEm) >= inicio)
+  const doPeriodo = chamados
   const finalizados = doPeriodo.filter(concluido)
   const duracoes = finalizados.filter((c) => c.resolvidoEm && c.dataAbertura)
     .map((c) => Math.max(0, (new Date(c.resolvidoEm) - new Date(c.dataAbertura)) / 3600000))

@@ -19,6 +19,20 @@ public class UsuarioController {
 
     private final UsuarioService usuarioService;
 
+    @PostMapping
+    public ResponseEntity<UsuarioResponseDTO> criar(@jakarta.validation.Valid @RequestBody br.edu.nassau.asordens.dto.UsuarioRequestDTO dto) {
+        return ResponseEntity.status(201).body(usuarioService.registrar(dto));
+    }
+    @PutMapping("/{id}")
+    public ResponseEntity<UsuarioResponseDTO> atualizar(@PathVariable Long id, @jakarta.validation.Valid @RequestBody br.edu.nassau.asordens.dto.UsuarioAtualizacaoDTO dto) {
+        return ResponseEntity.ok(usuarioService.atualizar(id, dto));
+    }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> excluir(@PathVariable Long id) { usuarioService.excluir(id); return ResponseEntity.noContent().build(); }
+
+    @PatchMapping("/{id}/desativar")
+    public ResponseEntity<Void> desativar(@PathVariable Long id) { usuarioService.desativar(id); return ResponseEntity.noContent().build(); }
+
     @GetMapping
     public ResponseEntity<Page<UsuarioResponseDTO>> listar(
             @PageableDefault(size = 10, sort = "nome") Pageable pageable) {

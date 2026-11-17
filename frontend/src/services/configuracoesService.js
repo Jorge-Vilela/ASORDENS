@@ -4,9 +4,9 @@ import { categorias } from '../utils/chamados'
 
 function aplicar(config) {
   const { categorias: nomes, preferencias: prefs, ...perfil } = config
-  Object.assign(usuarioAtual, perfil)
+  Object.assign(usuarioAtual, { telefone: perfil.telefone, disponibilidade: perfil.disponibilidade, cargo: perfil.cargo, equipe: perfil.equipe })
   Object.assign(preferencias, prefs)
-  categorias.splice(0, categorias.length, ...nomes)
+  if (nomes) categorias.splice(0, categorias.length, ...nomes)
 }
 
 export const configuracoesService = {

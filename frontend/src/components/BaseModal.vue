@@ -2,14 +2,15 @@
 import { onMounted, onUnmounted } from 'vue'
 import { X } from 'lucide-vue-next'
 
-defineProps({
+const props = defineProps({
   titulo: { type: String, required: true },
   largura: { type: String, default: '560px' },
+  escapeAtivo: { type: Boolean, default: true },
 })
 const emit = defineEmits(['fechar'])
 
 function aoTeclar(e) {
-  if (e.key === 'Escape') emit('fechar')
+  if (e.key === 'Escape' && props.escapeAtivo) emit('fechar')
 }
 onMounted(() => document.addEventListener('keydown', aoTeclar))
 onUnmounted(() => document.removeEventListener('keydown', aoTeclar))

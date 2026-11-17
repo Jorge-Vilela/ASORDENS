@@ -25,14 +25,78 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:h2:mem:integracao;MODE=PostgreSQL;DB_CLOSE_DELAY=-1",
         "spring.datasource.driver-class-name=org.h2.Driver",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "api.security.token.secret=chave-exclusiva-para-testes-automatizados"
 })
 class IntegracaoTests {
 
     @Autowired
     private WebApplicationContext context;
 
+    @Autowired
+    private br.edu.nassau.asordens.repository.UsuarioRepository usuarioRepository;
+
     private MockMvc mockMvc;
+
+    @Test
+    void administradorExcluiUsuarioSemHistoricoEConfiguracao() throws Exception {
+        String email = "excluir_" + UUID.randomUUID().toString().substring(0, 6) + "@teste.com";
+        String token = registrarELogar("Usuario Exclusao", email, "123456", "USER");
+        Long id = usuarioRepository.findByEmail(email).orElseThrow().getId();
+        mockMvc.perform(get("/api/configuracoes").header("Authorization", "Bearer " + token)).andExpect(status().isOk());
+        mockMvc.perform(delete("/api/usuarios/" + id).header("Authorization", "Bearer " + token)).andExpect(status().isForbidden());
+        mockMvc.perform(delete("/api/usuarios/" + id)
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN")))
+                .andExpect(status().isNoContent());
+        assertTrue(usuarioRepository.findByEmail(email).isEmpty());
+        mockMvc.perform(get("/api/chamados").header("Authorization", "Bearer " + token)).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void usuarioComChamadoNaoPodeSerExcluido() throws Exception {
+        String sufixo = UUID.randomUUID().toString().substring(0, 6);
+        String email = "vinculado_" + sufixo + "@teste.com";
+        String token = registrarELogar("Usuario Vinculado", email, "123456", "USER");
+        String tokenAdmin = registrarELogar("Admin Vinculado", "admin_v_" + sufixo + "@teste.com", "123456", "ADMIN");
+        Long categoriaId = criarCategoria(tokenAdmin, "Categoria_" + sufixo, 4);
+        mockMvc.perform(post("/api/chamados").header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"titulo\":\"Teste\",\"categoriaId\":" + categoriaId + ",\"prioridade\":\"BAIXA\"}"))
+                .andExpect(status().isCreated());
+        Long id = usuarioRepository.findByEmail(email).orElseThrow().getId();
+        mockMvc.perform(delete("/api/usuarios/" + id).header("Authorization", "Bearer " + tokenAdmin))
+                .andExpect(status().isConflict());
+        assertTrue(usuarioRepository.findByEmail(email).isPresent());
+    }
+
+    @Test
+    void usuarioDesativadoNaoPodeUsarTokenEmitidoAntesDaDesativacao() throws Exception {
+        String email = "desativado_" + UUID.randomUUID().toString().substring(0, 6) + "@teste.com";
+        String token = registrarELogar("Usuario Teste", email, "123456", "USER");
+        MvcResult usuarios = mockMvc.perform(get("/api/usuarios").param("size", "1000")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN")))
+                .andExpect(status().isOk()).andReturn();
+        String body = usuarios.getResponse().getContentAsString();
+        Matcher matcher = Pattern.compile("\\{[^{}]*\\\"id\\\":(\\d+)[^{}]*\\\"email\\\":\\\"" + Pattern.quote(email) + "\\\"").matcher(body);
+        assertTrue(matcher.find());
+        mockMvc.perform(patch("/api/usuarios/" + matcher.group(1) + "/desativar")
+                .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN")))
+                .andExpect(status().isNoContent());
+        mockMvc.perform(get("/api/chamados").header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void primeiroAcessoCriaConfiguracaoDoUsuario() throws Exception {
+        String email = "perfil_" + UUID.randomUUID().toString().substring(0, 6) + "@teste.com";
+        String token = registrarELogar("Usuario Perfil", email, "123456", "AGENTE");
+        mockMvc.perform(get("/api/configuracoes").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(email));
+        mockMvc.perform(get("/api/configuracoes").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(email));
+    }
 
     @BeforeEach
     void setup() {
@@ -175,7 +239,8 @@ class IntegracaoTests {
             }
             """.formatted(nome, email, senha, perfil);
 
-        mockMvc.perform(post("/api/auth/register")
+        mockMvc.perform(post("/api/usuarios")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user("admin").roles("ADMIN"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(registerJson))
                 .andExpect(status().isCreated());

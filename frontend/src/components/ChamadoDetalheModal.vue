@@ -3,13 +3,23 @@ import { ref, watch } from 'vue'
 import { Pencil, FileText } from 'lucide-vue-next'
 import BaseModal from './BaseModal.vue'
 import StatusBadge from './StatusBadge.vue'
+import ConfirmarExclusao from './ConfirmarExclusao.vue'
 import { useChamados } from '../composables/useChamados'
 import { chamadosService } from '../services/chamadosService'
 import { prioridadeLabel, formatarData, formatarTamanho } from '../utils/chamados'
 import { useRouter } from 'vue-router'
+import { usuarioAtual } from '../stores/dados'
 
 const { detalheId, versao, fecharDetalhe, abrirEdicao } = useChamados()
 const chamado = ref(null)
+const confirmarExclusao = ref(false)
+const excluindo = ref(false)
+async function excluir() {
+  if (excluindo.value) return
+  excluindo.value = true
+  try { await chamadosService.excluir(chamado.value.id); confirmarExclusao.value = false; fecharDetalhe(); atualizarListas() }
+  catch {} finally { excluindo.value = false }
+}
 
 async function carregar() {
   chamado.value = detalheId.value ? await chamadosService.buscar(detalheId.value) : null
@@ -21,7 +31,7 @@ function editar() {
   const atual = chamado.value
   fecharDetalhe()
   abrirEdicao(atual)
-  
+
 }
 
 const router = useRouter()
@@ -48,7 +58,7 @@ function atender() {
 </script>
 
 <template>
-  <BaseModal v-if="chamado" :titulo="chamado.id" largura="640px" @fechar="fecharDetalhe">
+  <BaseModal v-if="chamado" :titulo="chamado.id" largura="640px" :escape-ativo="!confirmarExclusao" @fechar="fecharDetalhe">
     <div class="topo">
       <h3>{{ chamado.titulo }}</h3>
       <StatusBadge :status="chamado.status" />
@@ -80,12 +90,14 @@ function atender() {
     </template>
 
     <template #rodape>
+      <button v-if="usuarioAtual.perfil === 'ADMIN'" class="btn btn-excluir" @click="confirmarExclusao = true">Excluir</button>
       <button class="btn btn-secundario" @click="fecharDetalhe">Fechar</button>
       <button class="btn btn-secundario" @click="editar"><Pencil :size="15" /> Editar chamado</button>
-      <button v-if="!chamado.agente" class="btn btn-primario" @click="puxar">Puxar e atender</button>
-      <button v-else class="btn btn-primario" @click="atender">Abrir atendimento</button>
+      <button v-if="chamado.status === 'aberto' && !chamado.agente && ['ADMIN', 'AGENTE'].includes(usuarioAtual.perfil)" class="btn btn-primario" @click="puxar">Puxar e atender</button>
+      <button class="btn btn-primario" @click="atender">Abrir atendimento</button>
     </template>
   </BaseModal>
+  <ConfirmarExclusao v-if="confirmarExclusao && chamado" :chamado="chamado" :excluindo="excluindo" @cancelar="confirmarExclusao = false" @confirmar="excluir" />
 </template>
 
 <style scoped>
@@ -211,4 +223,5 @@ small {
 .btn-primario:hover {
   background: var(--color-primary-hover);
 }
+.btn-excluir { border: 1px solid #f1c9c4; background: #fff4f2; color: #a12619; }
 </style>

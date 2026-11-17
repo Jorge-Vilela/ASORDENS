@@ -160,8 +160,8 @@ Na inicialização (`DataLoader`), os usuários abaixo são criados automaticame
 
 | Perfil | E-mail | Senha |
 | :--- | :--- | :--- |
-| `ADMIN` | `admin@asordens.com` | `123456` |
-| `AGENTE` | `agente@asordens.com` | `123456` |
+| `ADMIN` | `admin@asordens.com` | `Admin123` |
+| `AGENTE` | `agente@asordens.com` | `Agente123` |
 
 > Credenciais de **demonstração**, usadas apenas para testes locais.
 
@@ -198,10 +198,10 @@ Com a aplicação em execução:
 | `GET` | `/api/chamados` | Lista com paginação, ordenação e filtros (`status`, `prioridade`, `categoriaId`, `busca`) |
 | `GET` | `/api/chamados/{id}` | Detalhes de um chamado |
 | `POST` | `/api/chamados` | Cria um chamado |
-| `PATCH` | `/api/chamados/{id}/puxar` | Atribui o chamado ao agente autenticado e muda o status para `EM_ANDAMENTO` |
+| `PATCH` | `/api/chamados/{id}/assumir` | Atribui o chamado ao agente autenticado e muda o status para `EM_ANDAMENTO` |
 | `POST` | `/api/chamados/{id}/interacoes` | Adiciona uma interação/mensagem |
-| `PATCH` | `/api/chamados/{id}/resolver` | Marca o chamado como `RESOLVIDO` |
-| `POST` | `/api/chamados/{id}/avaliar` | Registra a avaliação do atendimento |
+| `PATCH` | `/api/chamados/{id}/finalizar` | Marca o chamado como `RESOLVIDO` |
+| `POST` | `/api/chamados/{id}/avaliacao` | Registra a avaliação do atendimento |
 | `DELETE` | `/api/chamados/{id}` | Remove um chamado (**somente `ADMIN`**) |
 
 ### Demais recursos (protegidos)
@@ -211,7 +211,7 @@ Com a aplicação em execução:
 | `GET/POST/PUT/DELETE` | `/api/usuarios` | Gerenciamento de usuários |
 | `GET/POST/PUT/DELETE` | `/api/equipes` | Gerenciamento de equipes técnicas |
 | `GET/POST/PUT/DELETE` | `/api/categorias` | Gerenciamento de categorias e SLA |
-| `GET` | `/api/relatorios` | Dados consolidados para relatórios |
+| `GET` | `/api/relatorios/chamados` | Dados consolidados para relatórios |
 | `GET/PUT` | `/api/configuracoes` | Consulta e atualização das configurações |
 
 ---

@@ -11,4 +11,5 @@ public interface UsuarioRepository extends JpaRepository<Usuario,Long> {
     Optional<Usuario> findByEmail(String email);
     boolean existsByEmail(String email);
     Page<Usuario> findByEquipeId(Long equipeId, Pageable pageable);
+    java.util.List<Usuario> findByAtivoTrueAndPerfilIn(java.util.Collection<br.edu.nassau.asordens.model.Perfil> perfis);
 }

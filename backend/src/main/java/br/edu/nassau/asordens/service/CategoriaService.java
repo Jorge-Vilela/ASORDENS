@@ -20,7 +20,7 @@ public class CategoriaService {
     @Transactional
     public CategoriaResponseDTO criar(CategoriaRequestDTO dto) {
         if (categoriaRepository.existsByNomeIgnoreCase(dto.nome())){
-            throw new IllegalArgumentException("Já existe uma categoria com este nome.");
+            throw new br.edu.nassau.asordens.exception.RegraNegocioException("Já existe uma categoria com este nome.");
         }
         Categoria categoria = Categoria.builder()
                 .nome(dto.nome())

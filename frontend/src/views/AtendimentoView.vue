@@ -3,10 +3,19 @@ import { ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ArrowLeft, Pencil, Send, FileText } from 'lucide-vue-next'
 import StatusBadge from '../components/StatusBadge.vue'
+import ConfirmarExclusao from '../components/ConfirmarExclusao.vue'
 import AnexosInput from '../components/AnexosInput.vue'
 import { useChamados } from '../composables/useChamados'
 import { chamadosService } from '../services/chamadosService'
 import { erroApi } from '../services/api'
+import { usuarioAtual } from '../stores/dados'
+const nota = ref(5)
+const comentario = ref('')
+async function finalizar() { try { chamado.value = await chamadosService.finalizar(chamado.value.id); atualizarListas() } catch {} }
+async function avaliar() { try { chamado.value = await chamadosService.avaliar(chamado.value.id, { nota: Number(nota.value), comentario: comentario.value }); atualizarListas() } catch {} }
+const confirmarExclusao = ref(false)
+const excluindo = ref(false)
+async function excluir() { if (excluindo.value) return; excluindo.value = true; try { await chamadosService.excluir(chamado.value.id); confirmarExclusao.value = false; atualizarListas(); router.push('/chamados') } catch {} finally { excluindo.value = false } }
 import { statusLabel, prioridadeLabel, formatarData, formatarTamanho } from '../utils/chamados'
 
 const route = useRoute()
@@ -32,7 +41,7 @@ function rolarParaFim() {
 }
 
 async function enviar() {
-  if (enviando.value || (!texto.value.trim() && !anexos.value.length)) return
+  if (enviando.value || !texto.value.trim()) return
   enviando.value = true
   try {
   await chamadosService.enviarMensagem(chamado.value.id, {
@@ -78,7 +87,7 @@ const ehImagem = (a) => a.tipo.startsWith('image/')
         </header>
 
         <div ref="listaMensagens" class="mensagens">
-          <!-- pedido original do solicitante -->
+
           <article class="msg msg-solicitante">
             <p class="autor">{{ chamado.solicitante }} · solicitante</p>
             <div class="balao">
@@ -96,9 +105,9 @@ const ehImagem = (a) => a.tipo.startsWith('image/')
             v-for="m in chamado.mensagens ?? []"
             :key="m.id"
             class="msg"
-            :class="m.autor === 'agente' ? 'msg-agente' : 'msg-solicitante'"
+            :class="m.autor === usuarioAtual.nome ? 'msg-agente' : 'msg-solicitante'"
           >
-            <p class="autor">{{ m.nome }} · {{ m.autor === 'agente' ? 'agente' : 'solicitante' }}</p>
+            <p class="autor">{{ m.autor }}</p>
             <div class="balao">
               <p v-if="m.texto">{{ m.texto }}</p>
               <ul v-if="m.anexos?.length" class="anexos">
@@ -122,8 +131,8 @@ const ehImagem = (a) => a.tipo.startsWith('image/')
             placeholder="Responder ao solicitante... (Ctrl + Enter para enviar)"
             @keydown.ctrl.enter.prevent="enviar"
           ></textarea>
-          <AnexosInput v-model="anexos" />
-          <button type="submit" class="btn btn-primario" :disabled="enviando || (!texto.trim() && !anexos.length)">
+
+          <button type="submit" class="btn btn-primario" :disabled="enviando || !texto.trim()">
             <Send :size="15" /> {{ enviando ? 'Enviando...' : 'Enviar resposta' }}
           </button>
         </form>
@@ -136,7 +145,7 @@ const ehImagem = (a) => a.tipo.startsWith('image/')
             <dt>Status</dt>
             <dd>
               <StatusBadge :status="chamado.status" />
-              <select :value="chamado.status" @change="mudarStatus">
+              <select v-if="['ADMIN', 'AGENTE'].includes(usuarioAtual.perfil)" :value="chamado.status" @change="mudarStatus">
                 <option v-for="(rotulo, valor) in statusLabel" :key="valor" :value="valor">
                   {{ rotulo }}
                 </option>
@@ -149,9 +158,15 @@ const ehImagem = (a) => a.tipo.startsWith('image/')
           <div><dt>Prioridade</dt><dd>{{ prioridadeLabel[chamado.prioridade] }}</dd></div>
           <div><dt>Atualizado</dt><dd>{{ formatarData(chamado.atualizadoEm) }}</dd></div>
         </dl>
+        <div class="acoes-atendimento">
+          <button v-if="chamado.status === 'em_andamento' && ['ADMIN', 'AGENTE'].includes(usuarioAtual.perfil)" class="btn btn-primario" @click="finalizar">Finalizar atendimento</button>
+          <form v-if="chamado.status === 'resolvido' && !chamado.avaliacao" class="avaliacao" @submit.prevent="avaliar"><h4>Avaliar atendimento</h4><label>Nota<select v-model="nota"><option v-for="n in 5" :key="n" :value="n">{{ n }} de 5</option></select></label><textarea v-model="comentario" placeholder="Deixe um comentário (opcional)"></textarea><button class="btn btn-primario">Enviar avaliação</button></form>
+          <button v-if="usuarioAtual.perfil === 'ADMIN'" class="btn btn-secundario excluir" @click="confirmarExclusao = true">Excluir chamado</button>
+        </div>
       </aside>
     </div>
   </div>
+  <ConfirmarExclusao v-if="confirmarExclusao && chamado" :chamado="chamado" :excluindo="excluindo" @cancelar="confirmarExclusao = false" @confirmar="excluir" />
 </template>
 
 <style scoped>
@@ -242,6 +257,7 @@ textarea { resize: vertical; }
 textarea:focus, select:focus { outline: none; border-color: var(--color-primary); }
 
 .info { padding: 20px; }
+.acoes-atendimento { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--color-border); }.acoes-atendimento .btn { width: 100%; }.acoes-atendimento .excluir { color: #b45a53; }.avaliacao { display: flex; flex-direction: column; gap: 10px; }.avaliacao h4 { color: var(--color-primary); font-size: 13px; }.avaliacao label { color: var(--color-text-muted); font-size: 12px; }.avaliacao select { margin-top: 6px; }
 .info h3 {
   margin-bottom: 16px;
   font-size: 13px;

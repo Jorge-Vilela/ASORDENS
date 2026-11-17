@@ -27,6 +27,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage(), null);
     }
 
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity handleDataIntegrity(org.springframework.dao.DataIntegrityViolationException ex) {
+        return buildResponse(HttpStatus.CONFLICT, "Não é possível excluir este registro porque ele possui dados vinculados.", null);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity handleValidation(MethodArgumentNotValidException ex) {
         var erros = ex.getBindingResult().getFieldErrors().stream()
@@ -36,6 +41,12 @@ public class GlobalExceptionHandler {
                 ))
                 .toList();
         return buildResponse(HttpStatus.BAD_REQUEST, "Erro de validação nos campos enviados.", erros);
+    }
+
+    @ExceptionHandler({IllegalArgumentException.class, org.springframework.http.converter.HttpMessageNotReadableException.class,
+            org.springframework.web.method.annotation.MethodArgumentTypeMismatchException.class})
+    public ResponseEntity handleInvalidInput(Exception ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, "Dados inválidos na requisição.", null);
     }
 
     @ExceptionHandler(BadCredentialsException.class)

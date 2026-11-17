@@ -1,5 +1,6 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
+import { api } from '../services/api'
 import { ClipboardList, CircleCheck, Clock, ArrowUp, Download } from 'lucide-vue-next'
 import KpiCard from '../components/KpiCard.vue'
 import GraficoSemana from '../components/GraficoSemana.vue'
@@ -19,11 +20,13 @@ const periodos = [
 
 const dias = ref(7)
 const relatorio = ref(null)
+const inicio = ref(''), fim = ref(''), equipeId = ref(''), status = ref(''), equipes = ref([])
+onMounted(async () => { try { equipes.value = (await api.get('/equipes')).data } catch {} })
 
 async function carregar() {
-  relatorio.value = await relatoriosService.gerar(dias.value)
+  relatorio.value = await relatoriosService.gerar(dias.value, { inicio: inicio.value, fim: fim.value, equipeId: equipeId.value, status: status.value })
 }
-watch([dias, versao], carregar, { immediate: true })
+watch([dias, versao, inicio, fim, equipeId, status], carregar, { immediate: true })
 
 function exportar() {
   const linhas = [
@@ -66,6 +69,7 @@ const percentual = (a) => (a.total ? (a.concluidos / a.total) * 100 : 0)
       </button>
     </div>
 
+    <div class="filtros-relatorio"><label>Início<input v-model="inicio" type="date"></label><label>Fim<input v-model="fim" type="date"></label><label>Equipe<select v-model="equipeId"><option value="">Todas as equipes</option><option v-for="e in equipes" :key="e.id" :value="e.id">{{ e.nome }}</option></select></label><label>Status<select v-model="status"><option value="">Todos os status</option><option value="ABERTO">Aberto</option><option value="EM_ANDAMENTO">Em andamento</option><option value="RESOLVIDO">Resolvido</option><option value="FECHADO">Fechado</option></select></label></div>
     <div class="kpis">
       <KpiCard :valor="relatorio.total" rotulo="Total de chamados" :icone="ClipboardList" tom="azul" />
       <KpiCard :valor="relatorio.taxaResolucao" rotulo="Taxa de resolução (%)" :icone="CircleCheck" tom="verde" />
@@ -108,6 +112,7 @@ const percentual = (a) => (a.total ? (a.concluidos / a.total) * 100 : 0)
 .relatorios { display: flex; flex-direction: column; gap: 16px; }
 
 .barra { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.filtros-relatorio { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px 20px; border: 1px solid var(--color-border); border-radius: 8px; background: #fff; }.filtros-relatorio label { flex: 1 1 150px; color: #64748b; font-size: 12px; font-weight: 600; }.filtros-relatorio input, .filtros-relatorio select { display: block; width: 100%; height: 40px; margin-top: 7px; padding: 0 10px; border: 1px solid #dce3ed; border-radius: 6px; background: #fff; color: var(--color-text); font: inherit; font-weight: 400; }.filtros-relatorio input:focus, .filtros-relatorio select:focus { outline: 0; border-color: #5573a3; box-shadow: 0 0 0 3px var(--color-primary-soft); }
 .chips { display: flex; gap: 8px; }
 
 .chip {

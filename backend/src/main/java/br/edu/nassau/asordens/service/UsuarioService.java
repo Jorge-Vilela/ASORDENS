@@ -23,6 +23,17 @@ public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final EquipeService equipeService;
     private final PasswordEncoder passwordEncoder;
+    private final br.edu.nassau.asordens.repository.ChamadoRepository chamadoRepository;
+    private final br.edu.nassau.asordens.repository.InteracaoChamadoRepository interacaoRepository;
+    private final br.edu.nassau.asordens.repository.ConfiguracaoRepository configuracaoRepository;
+
+    @Transactional(readOnly = true)
+    public java.util.List<java.util.Map<String, Object>> listarAgentes() {
+        return usuarioRepository.findByAtivoTrueAndPerfilIn(java.util.List.of(Perfil.AGENTE, Perfil.ADMIN)).stream()
+                .map(u -> java.util.Map.<String, Object>of("id", u.getId(), "nome", u.getNome(), "email", u.getEmail(),
+                        "perfil", u.getPerfil().name(), "equipe", u.getEquipe() != null ? u.getEquipe().getNome() : "Sem equipe"))
+                .toList();
+    }
 
     @Transactional
     public UsuarioResponseDTO registrar(UsuarioRequestDTO dto) {
@@ -66,6 +77,34 @@ public class UsuarioService {
         Equipe equipe = equipeId != null ? equipeService.buscarEntidade(equipeId) : null;
         usuario.setEquipe(equipe);
         return UsuarioResponseDTO.fromEntity(usuarioRepository.save(usuario));
+    }
+
+    @Transactional
+    public UsuarioResponseDTO atualizar(Long id, br.edu.nassau.asordens.dto.UsuarioAtualizacaoDTO dto) {
+        Usuario u = buscarEntidade(id);
+        usuarioRepository.findByEmail(dto.email()).filter(outro -> !outro.getId().equals(id)).ifPresent(outro -> { throw new RegraNegocioException("E-mail ja cadastrado."); });
+        u.setNome(dto.nome()); u.setEmail(dto.email()); u.setPerfil(dto.perfil()); u.setAtivo(dto.ativo());
+        u.setEquipe(dto.equipeId() == null ? null : equipeService.buscarEntidade(dto.equipeId()));
+        if (dto.senha() != null && !dto.senha().isBlank()) u.setSenha(passwordEncoder.encode(dto.senha()));
+        return UsuarioResponseDTO.fromEntity(usuarioRepository.save(u));
+    }
+    @Transactional
+    public void desativar(Long id) { Usuario u = buscarEntidade(id); u.setAtivo(false); usuarioRepository.save(u); }
+
+    @Transactional
+    public void excluir(Long id) {
+        Usuario usuario = buscarEntidade(id);
+        var autenticacao = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (autenticacao != null && usuario.getEmail().equalsIgnoreCase(autenticacao.getName())) {
+            throw new RegraNegocioException("Você não pode excluir sua própria conta.");
+        }
+        if (chamadoRepository.existsBySolicitanteIdOrAgenteId(id, id) || interacaoRepository.existsByAutorId(id)) {
+            throw new RegraNegocioException("Este usuário possui chamados ou interações vinculados. Desative a conta para preservar o histórico.");
+        }
+        configuracaoRepository.findById(id).ifPresent(configuracaoRepository::delete);
+        configuracaoRepository.flush();
+        usuarioRepository.delete(usuario);
+        usuarioRepository.flush();
     }
 
     public Usuario buscarEntidade(Long id) {

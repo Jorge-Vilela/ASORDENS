@@ -10,7 +10,6 @@ import { configuracoesService } from '../services/configuracoesService'
 const abas = [
   { id: 'perfil', rotulo: 'Perfil' },
   { id: 'preferencias', rotulo: 'Preferências' },
-  { id: 'categorias', rotulo: 'Categorias' },
 ]
 const aba = ref('perfil')
 
@@ -23,15 +22,11 @@ function avisar(texto) {
   clearTimeout(timer)
   timer = setTimeout(() => (mensagem.value = ''), 2500)
 }
-
-// Trocar de aba limpa os avisos
 function trocarAba(id) {
   aba.value = id
   mensagem.value = ''
   erro.value = ''
 }
-
-// ---- Perfil (copia local: só aplica ao clicar em Salvar) ----
 const perfil = ref({
   email: usuarioAtual.email,
   telefone: usuarioAtual.telefone,
@@ -39,11 +34,8 @@ const perfil = ref({
 })
 
 async function salvarPerfil() {
-  await configuracoesService.salvarPerfil(perfil.value)
-  avisar('Perfil salvo.')
+  try { await configuracoesService.salvarPerfil(perfil.value); avisar('Perfil salvo.') } catch (e) { erro.value = e.message }
 }
-
-// ---- Preferências ----
 const prefs = ref({ ...preferencias })
 
 async function salvarPreferencias() {
@@ -56,8 +48,6 @@ const opcoesPrefs = [
   { chave: 'notificarRespostaSolicitante', titulo: 'Resposta do solicitante', desc: 'Avisar quando o solicitante responder um chamado seu.' },
   { chave: 'notificarPorEmail', titulo: 'Notificações por e-mail', desc: 'Receber também uma cópia dos avisos por e-mail.' },
 ]
-
-// ---- Categorias ----
 const novaCategoria = ref('')
 
 const listaCategorias = computed(() =>
@@ -104,7 +94,7 @@ async function remover(nome) {
     </div>
 
     <section class="card">
-      <!-- PERFIL -->
+
       <form v-if="aba === 'perfil'" @submit.prevent="salvarPerfil">
         <h2>Perfil</h2>
 
@@ -141,7 +131,7 @@ async function remover(nome) {
         <button type="submit" class="btn-primario">Salvar perfil</button>
       </form>
 
-      <!-- PREFERÊNCIAS -->
+
       <form v-else-if="aba === 'preferencias'" @submit.prevent="salvarPreferencias">
         <h2>Notificações</h2>
 
@@ -156,7 +146,7 @@ async function remover(nome) {
         <button type="submit" class="btn-primario">Salvar preferências</button>
       </form>
 
-      <!-- CATEGORIAS -->
+
       <div v-else>
         <h2>Categorias de chamado</h2>
 
@@ -256,7 +246,7 @@ small { display: block; margin-top: 4px; font-size: 12px; color: var(--color-tex
 }
 .btn-primario:hover { background: var(--color-primary-hover); }
 
-/* Preferências */
+
 .opcao {
   display: flex;
   align-items: center;
@@ -294,7 +284,7 @@ small { display: block; margin-top: 4px; font-size: 12px; color: var(--color-tex
 .toggle:checked { background: var(--color-primary); }
 .toggle:checked::after { transform: translateX(18px); }
 
-/* Categorias */
+
 .nova { display: flex; gap: 10px; margin-bottom: 16px; }
 
 .categorias { list-style: none; display: flex; flex-direction: column; gap: 8px; }

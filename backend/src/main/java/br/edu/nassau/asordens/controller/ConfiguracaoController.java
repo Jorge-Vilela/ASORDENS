@@ -1,7 +1,7 @@
 package br.edu.nassau.asordens.controller;
 
 import br.edu.nassau.asordens.model.Perfil;
-import br.edu.nassau.asordens.repository.UsuarioRepository;
+import br.edu.nassau.asordens.service.UsuarioService;
 import br.edu.nassau.asordens.service.ConfiguracaoService;
 import br.edu.nassau.asordens.dto.ConfiguracaoResponseDTO;
 import br.edu.nassau.asordens.dto.PerfilConfigRequestDTO;
@@ -22,7 +22,7 @@ import java.util.Map;
 public class ConfiguracaoController {
 
     private final ConfiguracaoService service;
-    private final UsuarioRepository usuarioRepository;
+    private final UsuarioService usuarioService;
 
     @GetMapping("/configuracoes")
     public ResponseEntity<ConfiguracaoResponseDTO> configuracoes() {
@@ -50,16 +50,6 @@ public class ConfiguracaoController {
 
     @GetMapping("/agentes")
     public ResponseEntity agentes() {
-        var lista = usuarioRepository.findAll().stream()
-                .filter(u -> u.getAtivo() && (u.getPerfil() == Perfil.AGENTE || u.getPerfil() == Perfil.ADMIN))
-                .map(u -> Map.of(
-                        "id", u.getId(),
-                        "nome", u.getNome(),
-                        "email", u.getEmail(),
-                        "perfil", u.getPerfil().name(),
-                        "equipe", u.getEquipe() != null ? u.getEquipe().getNome() : "Sem equipe"
-                ))
-                .toList();
-        return ResponseEntity.ok(lista);
+        return ResponseEntity.ok(usuarioService.listarAgentes());
     }
 }

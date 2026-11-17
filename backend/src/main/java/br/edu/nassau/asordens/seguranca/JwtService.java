@@ -13,7 +13,7 @@ import java.util.Date;
 
 @Service
 public class JwtService {
-    @Value("${api.security.token.secret:chave-secreta-super-segura-asordens-2026-minimo-32-chars}")
+    @Value("${api.security.token.secret}")
     private String secret;
 
     @Value("${api.security.token.expiration:86400000}")

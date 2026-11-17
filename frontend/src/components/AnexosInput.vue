@@ -31,14 +31,14 @@ function adicionar(evento) {
         tamanho: arquivo.size,
         tipo: arquivo.type,
         url: URL.createObjectURL(arquivo),
-        arquivo, // o File original, usado no upload quando o back existir
+        arquivo,
       })
     }
   }
 
   erro.value = erros.join(' · ')
   emit('update:modelValue', [...props.modelValue, ...novos])
-  evento.target.value = '' // permite escolher o mesmo arquivo de novo
+  evento.target.value = ''
 }
 
 function remover(id) {

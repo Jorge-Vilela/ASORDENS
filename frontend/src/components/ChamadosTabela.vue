@@ -93,10 +93,7 @@ function ordenar(chave) {
     ordenarPor.value = chave
     direcao.value = 'asc'
   }
-}
-
-// ao mudar qualquer filtro, volta pra primeira página
-watch([filtroStatus, filtroPrioridade, busca], () => {
+}watch([filtroStatus, filtroPrioridade, busca], () => {
   pagina.value = 1
 })
 </script>
